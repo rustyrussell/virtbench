@@ -1,6 +1,5 @@
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <sys/socket.h>
 #include "../benchmarks.h"
 
 static void do_syscall_bench(int fd, u32 runs,

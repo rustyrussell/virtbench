@@ -28,7 +28,7 @@ static struct benchmark *find_bench(const char *name)
 bool wait_for_start(int sock)
 {
 	struct message msg;
-	
+
 	return recv(sock, &msg, sizeof(msg), 0) == 5;
 }
 
@@ -93,6 +93,9 @@ int main(int argc, char *argv[])
 	struct sockaddr from;
 	socklen_t fl;
 	struct in_addr addr = { .s_addr = INADDR_ANY };
+
+	if (argc == 2)
+		exec_test(argv[1]);
 
 	if (argc != 1 && argc != 3)
 		usage();

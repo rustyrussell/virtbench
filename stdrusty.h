@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <limits.h>
 
 /* Is A == B ? */
 #define streq(a,b) (strcmp((a),(b)) == 0)

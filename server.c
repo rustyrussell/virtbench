@@ -18,7 +18,7 @@
 #include "benchmarks.h"
 
 #define NUM_MACHINES 8
-#define MAX_TEST_TIME ((u64)5)
+#define MAX_TEST_TIME ((u64)20)
 
 static void __attribute__((noreturn)) usage(void)
 {
@@ -42,7 +42,7 @@ static const char *do_send_message(u32 dst, const char *str, unsigned int len,
 
 	saddr.sin_family = AF_INET;
 	saddr.sin_port = 6099;
-	saddr.sin_addr.s_addr = htonl(0x0A131300 + dst);
+	saddr.sin_addr.s_addr = htonl(clientip(dst));
 	if (connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
 		return "connecting socket";
 
@@ -130,14 +130,22 @@ static int destroy_machine(char *name)
 
 	cmd = talloc_asprintf(NULL, "%s/stop_machine %s", virtdir, name);
 	f = popen(cmd, "r");
-	if (!f)
+	if (!f) {
 		warn("Could not popen '%s'", cmd);
+		return 0;
+	}
 	status = fclose(f);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
 		warnx("'%s' failed", cmd);
 	talloc_free(cmd);
 	return 0;
 }
+
+#define HIPQUAD(ip)				\
+	((u8)(ip >> 24)),			\
+	((u8)(ip >> 16)),			\
+	((u8)(ip >> 8)),			\
+	((u8)(ip))
 
 static char **bringup_machines(void)
 {
@@ -154,7 +162,8 @@ static char **bringup_machines(void)
 		int status;
 		char *cmd;
 
-		cmd = talloc_asprintf(names, "%s/start_machine %i", virtdir,i);
+		cmd = talloc_asprintf(names, "%s/start_machine %i %i.%i.%i.%i",
+				      virtdir, i, HIPQUAD(clientip(i)));
 		f = popen(cmd, "r");
 		if (!f)
 			err(1, "Could not popen '%s'", cmd);
@@ -215,10 +224,6 @@ static unsigned pick_outlier(const u64 times[MAX_RESULTS])
 		}
 	}
 
-	if (worst != MAX_RESULTS)
-		printf("Worst outlier is %i with %llu vs %llu\n",
-		       worst, times[worst], avg);
-
 	return worst;
 }
 
@@ -260,7 +265,7 @@ static u64 single_bench(unsigned int dst, struct benchmark *bench)
 
 	/* We use "best" as a guestimate of the overhead. */
 	stable(dst, bench, 0, &best);
-	for (i = 0; i < 64; i++) {
+	for (i = 4; i < 64; i++) {
 		u64 time = stable(dst, bench, (u64)1 << i, &best);
 		if (time > best * 256)
 			return (time - best) / (1 << i);
@@ -299,6 +304,7 @@ int main(int argc, char *argv[])
 		if (argv[2] && !streq(b->name, argv[2]))
 			continue;
 		printf("Running benchmark '%s'...", b->name);
+		fflush(stdout);
 		result = b->local(b);
 		printf(b->format, (unsigned int)result);
 		printf("\n");

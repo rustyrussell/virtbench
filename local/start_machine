@@ -9,5 +9,5 @@ if lsmod | grep -wq dummy; then :; else
 fi
 
 # Redirect everything so this doesn't hold socket open.
-./virtclient dummy$1 10.19.19.$1 >/dev/tty < /dev/null 2>&1 &
+./virtclient dummy$1 $2 >/dev/tty < /dev/null 2>&1 &
 jobs -p %1
