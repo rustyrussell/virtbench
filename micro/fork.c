@@ -2,11 +2,12 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <err.h>
 #include "../benchmarks.h"
 
-static void do_syscall_fork(int fd, u32 runs,
-			     struct sockaddr *from, socklen_t *fromlen,
-			     struct benchmark *bench)
+static void do_fork(int fd, u32 runs,
+		    struct sockaddr *from, socklen_t *fromlen,
+		    struct benchmark *bench)
 {
 	send_ack(fd, from, fromlen);
 
@@ -18,16 +19,15 @@ static void do_syscall_fork(int fd, u32 runs,
 			case 0:
 				exit(0);
 			case -1:
-				exit(1);
+				err(1, "forking");
+			default:
+				wait(NULL);
 			}
 		}
 		send_ack(fd, from, fromlen);
-		for (i = 0; i < runs; i++)
-			wait(NULL);
 	}
 }
 
-struct benchmark fork_benchmark __attribute__((section("benchmarks")))
-= { "fork", "Time for one fork: %u nsec",
-    do_single_bench, do_syscall_fork };
-
+struct benchmark fork_wait_benchmark __attribute__((section("benchmarks")))
+= { "fork", "Time for one fork/exit/wait: %u nsec",
+    do_single_bench, do_fork };
