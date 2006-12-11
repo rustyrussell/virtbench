@@ -34,7 +34,7 @@ static unsigned int setup(int fd, struct sockaddr *from, socklen_t *fromlen)
 
 static void do_memburn_linear(int fd, u32 runs,
 			      struct sockaddr *from, socklen_t *fromlen,
-			      struct benchmark *bench)
+			      struct benchmark *bench, const void *opts)
 {
 	unsigned int r, i;
 
@@ -48,7 +48,7 @@ static void do_memburn_linear(int fd, u32 runs,
 
 static void do_memburn_random(int fd, u32 runs,
 			      struct sockaddr *from, socklen_t *fromlen,
-			      struct benchmark *bench)
+			      struct benchmark *bench, const void *opts)
 {
 	unsigned int r, i;
 
@@ -60,9 +60,9 @@ static void do_memburn_random(int fd, u32 runs,
 	}
 }
 
-struct benchmark memburn_linear __attribute__((section("benchmarks")))
+struct benchmark memburn_linear _benchmark_
 = { "memburn-linear", fmtstr, do_single_bench, do_memburn_linear };
 
-struct benchmark memburn_random __attribute__((section("benchmarks")))
+struct benchmark memburn_random _benchmark_
 = { "memburn-random", fmtstr, do_single_bench, do_memburn_random };
 

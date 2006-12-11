@@ -12,7 +12,7 @@
 struct message
 {
 	u32 runs;
-	char bench[1024];
+	char bench[1024]; 	/* And options... */
 };
 
 static struct benchmark *find_bench(const char *name)
@@ -29,7 +29,7 @@ bool wait_for_start(int sock)
 {
 	struct message msg;
 
-	return recv(sock, &msg, sizeof(msg), 0) == 5;
+	return recv(sock, &msg, sizeof(msg), 0) == 6;
 }
 
 void send_ack(int sock, struct sockaddr *from, socklen_t *fromlen)
@@ -116,7 +116,8 @@ int main(int argc, char *argv[])
 	while ((len = recvfrom(sock, &msg, sizeof(msg), 0, &from, &fl)) >= 4) {
 		struct benchmark *b;
 		b = find_bench(msg.bench);
-		b->remote(sock, msg.runs, &from, &fl, b);
+		b->client(sock, msg.runs, &from, &fl, b,
+			  msg.bench + strlen(msg.bench) + 1);
 	}
 
 	err(1, "reading from socket");
@@ -124,6 +125,12 @@ int main(int argc, char *argv[])
 
 /* Dummy for compiling benchmarks. */
 u64 do_single_bench(struct benchmark *bench)
+{
+	assert(0);
+	return 0;
+}
+
+u64 do_pair_bench(struct benchmark *bench)
 {
 	assert(0);
 	return 0;

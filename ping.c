@@ -6,7 +6,7 @@
 /* They use this to see if we're alive yet. */
 static void do_ping(int fd, u32 runs,
 		    struct sockaddr *from, socklen_t *fromlen,
-		    struct benchmark *bench)
+		    struct benchmark *bench, const void *opts)
 {
 	send_ack(fd, from, fromlen);
 }

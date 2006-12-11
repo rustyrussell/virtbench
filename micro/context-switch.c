@@ -10,7 +10,7 @@
 
 static void do_context_switch(int fd, u32 runs,
 			      struct sockaddr *from, socklen_t *fromlen,
-			      struct benchmark *bench)
+			      struct benchmark *bench, const void *opts)
 {
 	char c = 1;
 	int fds1[2], fds2[2], child;
@@ -55,7 +55,7 @@ static void do_context_switch(int fd, u32 runs,
 	}
 }
 
-struct benchmark context_swtch_benchmark __attribute__((section("benchmarks")))
+struct benchmark context_swtch_benchmark _benchmark_
 = { "context-switch", "Time for one context switch via pipe: %u nsec",
     do_single_bench, do_context_switch };
 

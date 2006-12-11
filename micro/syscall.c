@@ -4,7 +4,7 @@
 
 static void do_syscall_bench(int fd, u32 runs,
 			     struct sockaddr *from, socklen_t *fromlen,
-			     struct benchmark *bench)
+			     struct benchmark *bench, const void *opts)
 {
 	send_ack(fd, from, fromlen);
 
@@ -18,7 +18,7 @@ static void do_syscall_bench(int fd, u32 runs,
 	}
 }
 
-struct benchmark syscall_benchmark __attribute__((section("benchmarks")))
+struct benchmark syscall_benchmark _benchmark_
 = { "syscall", "Time for one syscall: %u nsec",
     do_single_bench, do_syscall_bench };
 

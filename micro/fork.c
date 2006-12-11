@@ -7,7 +7,7 @@
 
 static void do_fork(int fd, u32 runs,
 		    struct sockaddr *from, socklen_t *fromlen,
-		    struct benchmark *bench)
+		    struct benchmark *bench, const void *opts)
 {
 	send_ack(fd, from, fromlen);
 
@@ -28,6 +28,6 @@ static void do_fork(int fd, u32 runs,
 	}
 }
 
-struct benchmark fork_wait_benchmark __attribute__((section("benchmarks")))
+struct benchmark fork_wait_benchmark _benchmark_
 = { "fork", "Time for one fork/exit/wait: %u nsec",
     do_single_bench, do_fork };

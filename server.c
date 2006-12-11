@@ -20,77 +20,94 @@
 #define NUM_MACHINES 8
 #define MAX_TEST_TIME ((u64)20)
 
-static void __attribute__((noreturn)) usage(void)
+static void __attribute__((noreturn)) usage(bool showbench)
 {
-	errx(1, "Usage: virtbench <virt-type> [benchmark]\n");
+	fprintf(stderr, "Usage: virtbench <virt-type> [benchmark]\n");
+	if (showbench) {
+		struct benchmark *b;
+
+		printf("Benchmarks are:\n");
+		for (b = __start_benchmarks; b < __stop_benchmarks; b++)
+			printf("  %s\n", b->name);
+	}
+	exit(0);
 }
 
 static const char *virtdir;
+static int udpsock;
 
-static const char *do_send_message(u32 dst, const char *str, unsigned int len,
-				   int msecs, u64 *time)
+static void start_timeout_timer(unsigned int msecs)
 {
-	struct sockaddr_in saddr;
-	struct timeval start, end;
 	struct itimerval ival;
-	u32 reply;
-	int sock;
-
-	sock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (sock < 0)
-		return "creating socket";
-
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = 6099;
-	saddr.sin_addr.s_addr = htonl(clientip(dst));
-	if (connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
-		return "connecting socket";
-
 	ival.it_value.tv_sec = msecs / 1000;
 	ival.it_value.tv_usec = (msecs % 1000) * 1000;
 	ival.it_interval.tv_sec = ival.it_interval.tv_usec = 0;
-
 	setitimer(ITIMER_REAL, &ival, NULL);
-	gettimeofday(&start, NULL);
-	if (send(sock, str, len, 0) != len) {
-		alarm(0);
-		return "sending on socket";
-	}
+}
 
-	if (recv(sock, &reply, sizeof(reply), 0) != sizeof(reply)) {
-		alarm(0);
-		return "receiving on socket";
-	}
-	gettimeofday(&end, NULL);
-	close(sock);
+static void stop_timeout_timer(void)
+{
+	struct itimerval ival;
+	int olderr = errno;
 
 	ival.it_value.tv_sec = ival.it_value.tv_usec = 0;
 	setitimer(ITIMER_REAL, &ival, NULL);
 
-	if (reply != 0) {
-		errno = 0;
-		return "running benchmark";
-	}
-
-	*time = (end.tv_sec - start.tv_sec) * (u64)1000000000 
-		+ (end.tv_usec - start.tv_usec) * (u64)1000;
-	return NULL;
+	errno = olderr;
 }
 
-static u64 send_message(u32 dst, const char *benchmark, u32 runs)
+static void start_timer(struct timeval *start)
 {
-	const char *errstr;
-	char str[sizeof(runs) + strlen(benchmark) + 1];
-	u64 time;
+	start_timeout_timer(MAX_TEST_TIME * 1000);
+	gettimeofday(start, NULL);
+}
 
-	memcpy(str, &runs, sizeof(runs));
-	strcpy(str + sizeof(runs), benchmark);
+static bool send_to_client(int dst, const void *buf, unsigned int len)
+{
+	struct sockaddr_in saddr;
 
-	errstr = do_send_message(dst, str, sizeof(str), MAX_TEST_TIME*1000,
-				 &time);
-	if (errstr)
-		err(1, errstr, benchmark);
-	return time;
+	saddr.sin_family = AF_INET;
+	saddr.sin_port = 6099;
+	saddr.sin_addr.s_addr = htonl(clientip(dst));
+
+	return sendto(udpsock, buf, len, 0, (void *)&saddr, sizeof(saddr))
+		== len;
+}
+
+static void send_start_to_client(int dst)
+{
+	const char str[] = "\0\0\0\0\0";
+
+	if (!send_to_client(dst, str, sizeof(str)))
+		err(1, "sending start to %i", dst);
+}
+
+static bool recv_from_client(void)
+{
+	int ans;
+
+	if (recv(udpsock, &ans, sizeof(ans), 0) != sizeof(ans)) {
+		if (errno == EINTR)
+			errno = ETIMEDOUT;
+		return false;
+	}
+	return ans == 0;
+}
+
+static u64 end_test(const struct timeval *start, int clients)
+{
+	int i;
+	struct timeval end;
+
+	for (i = 0; i < clients; i++)
+		if (!recv_from_client())
+			err(1, "receiving reply");
+
+	gettimeofday(&end, NULL);
+	stop_timeout_timer();
+
+	return (end.tv_sec - start->tv_sec) * (u64)1000000000 
+		+ (end.tv_usec - start->tv_usec) * (u64)1000;
 }
 
 /* We don't want timeout to kill us, just abort recv. */
@@ -101,9 +118,35 @@ static void wakeup(int signo)
 static bool ping_client(u32 dst)
 {
 	char str[] = "\0\0\0\0ping";
-	u64 time;
+	bool ok;
 
-	return do_send_message(dst, str, sizeof(str), 50, &time) == NULL;
+	if (!send_to_client(dst, str, sizeof(str)))
+		return false;
+
+	start_timeout_timer(50);
+	ok = recv_from_client();
+	stop_timeout_timer();
+	return ok;
+}
+
+static void setup_bench(u32 dst, const char *benchname, const void *opts,
+			int optlen, int runs)
+{
+	bool ok;
+	char str[sizeof(runs) + strlen(benchname) + 1 + optlen];
+
+	memcpy(str, &runs, sizeof(runs));
+	strcpy(str + sizeof(runs), benchname);
+	memcpy(str + sizeof(runs) + strlen(benchname)+1, opts, optlen);
+
+	if (!send_to_client(dst, str, sizeof(str)))
+		err(1, "sending setup for %s to client %i", benchname, dst);
+
+	start_timeout_timer(1000);
+	ok = recv_from_client();
+	stop_timeout_timer();
+	if (!ok)
+		err(1, "client %i acking setup for %s", dst, benchname);
 }
 
 /* Simple routine to suck a FILE * dry. */
@@ -228,54 +271,124 @@ static unsigned pick_outlier(const u64 times[MAX_RESULTS])
 }
 
 /* Try to get a stable result. */
-static u64 stable(unsigned int dst, struct benchmark *bench, unsigned int runs,
-		  u64 *best)
+static int next_place(u64 times[MAX_RESULTS], int *data)
 {
-	u64 times[MAX_RESULTS], res;
-	unsigned int i, bad, oldbad = MAX_RESULTS;
+	unsigned int bad;
 
-	for (i = 0; i < MAX_RESULTS; i++) {
-		send_message(dst, bench->name, runs);
-		times[i] = send_message(dst, "", runs);
-		if (times[i] < *best)
-			*best = times[i];
-	}
+	/* First we fill in all the results. */
+	if (*data < MAX_RESULTS)
+		return (*data)++;
 
-	while ((bad = pick_outlier(times)) != MAX_RESULTS) {
-		if (bad == oldbad)
-			bad = random() % MAX_RESULTS;
-		oldbad = bad;
-		send_message(dst, bench->name, runs);
-		times[bad] = send_message(dst, "", runs);
-		if (times[bad] < *best)
-			*best = times[bad];
-	}
+	bad = pick_outlier(times);
+	if (bad == MAX_RESULTS)
+		return -1;
 
-	res = 0;
-	for (i = 0; i < MAX_RESULTS; i++)
-		res += times[i];
+	/* Avoid replacing the same one twice. */
+	if (bad + MAX_RESULTS + 1 == *data)
+		bad = random() % MAX_RESULTS;
 
-	return res / MAX_RESULTS;
+	*data = bad + MAX_RESULTS + 1;
+	return bad;
 }
 
-static u64 single_bench(unsigned int dst, struct benchmark *bench)
+static u64 average(u64 times[MAX_RESULTS])
 {
-	unsigned int i;
-	u64 best = -1ULL;
+	u64 i, total = 0;
 
-	/* We use "best" as a guestimate of the overhead. */
-	stable(dst, bench, 0, &best);
-	for (i = 4; i < 64; i++) {
-		u64 time = stable(dst, bench, (u64)1 << i, &best);
-		if (time > best * 256)
-			return (time - best) / (1 << i);
-	}
-	assert(0);
+	for (i = 0; i < MAX_RESULTS; i++)
+		total += times[i];
+
+	return total / MAX_RESULTS;
 }
 
 u64 do_single_bench(struct benchmark *bench)
 {
-	return single_bench(0, bench);
+	int data, i, slot;
+	u64 best = -1ULL;
+	u64 times[MAX_RESULTS];
+	unsigned int dst = random() % NUM_MACHINES;
+
+	for (i = 0; i < 64; i++) {
+		u64 avg;
+
+		data = 0;
+		while ((slot = next_place(times, &data)) != -1) {
+			struct timeval start;
+			setup_bench(dst, bench->name, "", 0, (u64)1<<i);
+			start_timer(&start);
+			send_start_to_client(dst);
+			times[slot] = end_test(&start, 1);
+			if (times[slot] < best)
+				best = times[slot];
+		}
+
+		/* Was this the warmup? */
+		if (i == 0) {
+			i = 3;
+			continue;
+		}
+
+		avg = average(times);
+		/* We use "best" as a guestimate of the overhead. */
+		if (avg > best * 256)
+			return (avg - best) / (1 << i);
+	}
+	assert(0);
+}
+
+u64 do_pair_bench(struct benchmark *bench)
+{
+	int mach1, mach2;
+	u32 ip1, ip2;
+	int data, i, slot;
+	u64 best = -1ULL;
+	u64 times[MAX_RESULTS];
+
+	mach1 = (random() % NUM_MACHINES);
+	do {
+		mach2 = (random() % NUM_MACHINES);
+	} while (mach2 == mach1);
+
+	ip1 = clientip(mach1);
+	ip2 = clientip(mach2);
+
+	for (i = 0; i < 64; i++) {
+		u64 avg;
+
+		data = 0;
+		while ((slot = next_place(times, &data)) != -1) {
+			struct timeval start;
+			struct pair_opt opt;
+			opt.yourip = ip1;
+			opt.otherip = ip2;
+			opt.start = 1;
+			setup_bench(mach1, bench->name, &opt, sizeof(opt),
+				    (u64)1<<i);
+			opt.yourip = ip2;
+			opt.otherip = ip1;
+			opt.start = 0;
+			setup_bench(mach2, bench->name, &opt, sizeof(opt),
+				    (u64)1<<i);
+			start_timer(&start);
+			send_start_to_client(mach1);
+			send_start_to_client(mach2);
+			times[slot] = end_test(&start, 2);
+			if (times[slot] < best)
+				best = times[slot];
+		}
+
+		/* Was this the warmup? */
+		if (i == 0) {
+			i = 3;
+			continue;
+		}
+
+		avg = average(times);
+		/* We use "best" as a guestimate of the overhead. */
+		if (avg > best * 256)
+			return (avg - best) / (1 << i);
+	}
+	assert(0);
 }
 
 int main(int argc, char *argv[])
@@ -286,7 +399,7 @@ int main(int argc, char *argv[])
 	bool done = false;
 
 	if (argc < 2 || argc > 3)
-		usage();
+		usage(false);
 
 	act.sa_handler = wakeup;
 	sigemptyset(&act.sa_mask);
@@ -295,7 +408,11 @@ int main(int argc, char *argv[])
 
 	virtdir = argv[1];
 	if (!is_dir(virtdir))
-		usage();
+		usage(false);
+
+	udpsock = socket(PF_INET, SOCK_DGRAM, 0);
+	if (udpsock < 0)
+		err(1, "creating udp socket");
 
 	names = bringup_machines();
 
@@ -305,14 +422,14 @@ int main(int argc, char *argv[])
 			continue;
 		printf("Running benchmark '%s'...", b->name);
 		fflush(stdout);
-		result = b->local(b);
+		result = b->server(b);
 		printf(b->format, (unsigned int)result);
 		printf("\n");
 		done = true;
 	}
 
 	if (!done)
-		usage();
+		usage(true);
 	return 0;
 }
 

@@ -27,7 +27,7 @@ void exec_test(char *runstr)
 
 static void do_syscall_exec(int fd, u32 runs,
 			    struct sockaddr *from, socklen_t *fromlen,
-			    struct benchmark *bench)
+			    struct benchmark *bench, const void *opts)
 {
 	char runstr[CHAR_SIZE(int)];
 	int status;
@@ -54,7 +54,7 @@ static void do_syscall_exec(int fd, u32 runs,
 	}
 }
 
-struct benchmark exec_benchmark __attribute__((section("benchmarks")))
+struct benchmark exec_benchmark _benchmark_
 = { "exec", "Time to exec client once: %u nsec",
     do_single_bench, do_syscall_exec };
 

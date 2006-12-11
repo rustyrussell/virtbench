@@ -8,7 +8,7 @@
 
 static void do_cow(int fd, u32 runs,
 		   struct sockaddr *from, socklen_t *fromlen,
-		   struct benchmark *bench)
+		   struct benchmark *bench, const void *opts)
 {
 	unsigned int i;
 	int *maps[runs];
@@ -43,7 +43,7 @@ static void do_cow(int fd, u32 runs,
 	close(pagefd);
 }
 
-struct benchmark cow_benchmark __attribute__((section("benchmarks")))
+struct benchmark cow_benchmark _benchmark_
 = { "cow", "Time for one Copy-on-Write fault: %u nsec",
     do_single_bench, do_cow };
 
