@@ -304,34 +304,38 @@ static u64 average(u64 times[MAX_RESULTS])
 u64 do_single_bench(struct benchmark *bench)
 {
 	int data, i, slot;
-	u64 best = -1ULL;
+	u64 runs, best = -1ULL;
 	u64 times[MAX_RESULTS];
 	unsigned int dst = random() % NUM_MACHINES;
 
 	for (i = 0; i < 64; i++) {
 		u64 avg;
 
+	next:
+		if (i == 0)
+			runs = 0;
+		else
+			runs = (u64)1<<i;
 		data = 0;
 		while ((slot = next_place(times, &data)) != -1) {
 			struct timeval start;
-			setup_bench(dst, bench->name, "", 0, (u64)1<<i);
+			setup_bench(dst, bench->name, "", 0, runs);
 			start_timer(&start);
 			send_start_to_client(dst);
 			times[slot] = end_test(&start, 1);
 			if (times[slot] < best)
 				best = times[slot];
-		}
-
-		/* Was this the warmup? */
-		if (i == 0) {
-			i = 3;
-			continue;
+			/* Was this the warmup? */
+			if (runs == 0 && slot == MAX_RESULTS-1) {
+				i = 4;
+				goto next;
+			}
 		}
 
 		avg = average(times);
 		/* We use "best" as a guestimate of the overhead. */
 		if (avg > best * 256)
-			return (avg - best) / (1 << i);
+			return (avg - best) / runs;
 	}
 	assert(0);
 }
@@ -341,7 +345,7 @@ u64 do_pair_bench(struct benchmark *bench)
 	int mach1, mach2;
 	u32 ip1, ip2;
 	int data, i, slot;
-	u64 best = -1ULL;
+	u64 runs, best = -1ULL;
 	u64 times[MAX_RESULTS];
 
 	mach1 = (random() % NUM_MACHINES);
@@ -355,6 +359,12 @@ u64 do_pair_bench(struct benchmark *bench)
 	for (i = 0; i < 64; i++) {
 		u64 avg;
 
+	next:
+		if (i == 0)
+			runs = 0;
+		else
+			runs = (u64)1<<i;
+
 		data = 0;
 		while ((slot = next_place(times, &data)) != -1) {
 			struct timeval start;
@@ -363,24 +373,24 @@ u64 do_pair_bench(struct benchmark *bench)
 			opt.otherip = ip2;
 			opt.start = 1;
 			setup_bench(mach1, bench->name, &opt, sizeof(opt),
-				    (u64)1<<i);
+				    runs);
 			opt.yourip = ip2;
 			opt.otherip = ip1;
 			opt.start = 0;
 			setup_bench(mach2, bench->name, &opt, sizeof(opt),
-				    (u64)1<<i);
+				    runs);
 			start_timer(&start);
 			send_start_to_client(mach1);
 			send_start_to_client(mach2);
 			times[slot] = end_test(&start, 2);
 			if (times[slot] < best)
 				best = times[slot];
-		}
 
-		/* Was this the warmup? */
-		if (i == 0) {
-			i = 3;
-			continue;
+			/* Was this the warmup? */
+			if (runs == 0 && slot == MAX_RESULTS-1) {
+				i = 4;
+				goto next;
+			}
 		}
 
 		avg = average(times);
