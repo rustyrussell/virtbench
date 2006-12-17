@@ -76,6 +76,9 @@ static struct in_addr setup_network(const char *devname, const char *addrstr)
 		err(1, "opening IP socket");
 	if (ioctl(fd, SIOCSIFADDR, &ifr) != 0)
 		err(1, "Setting interface address");
+	ifr.ifr_flags = IFF_UP;
+	if (ioctl(fd, SIOCSIFFLAGS, &ifr) != 0)
+		err(1, "Bringing interface up");
 
 	return addr;
 }
