@@ -11,4 +11,4 @@ virtbench: $(SERVERCFILES) Makefile
 	$(CC) $(CFLAGS) -o $@ $(SERVERCFILES)
 
 virtclient: $(CLIENTCFILES) Makefile
-	$(CC) $(CFLAGS) -o $@ $(CLIENTCFILES)
+	$(CC) $(CFLAGS) -static -o $@ $(CLIENTCFILES)
