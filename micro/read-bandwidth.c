@@ -28,9 +28,14 @@ static void do_read_bandwidth(int fd, u32 runs,
 	/* O_DIRECT wants an aligned pointer. */
 	pa = (void *)(((unsigned long)p+getpagesize()-1) & ~(getpagesize()-1));
 
-	testfd = open(TESTFILE, O_RDONLY|O_DIRECT, 0);
+	testfd = open(TESTFILE, O_RDONLY|O_DIRECT);
+	/* Not big enough? */
+	if (testfd >= 0 && read(testfd, pa, READ_SIZE*runs) != READ_SIZE*runs){
+		close(testfd);
+		testfd = -1;
+	}
 	if (testfd < 0) {
-		testfd = open(TESTFILE, O_CREAT|O_EXCL|O_RDWR, 0600);
+		testfd = open(TESTFILE, O_CREAT|O_TRUNC|O_RDWR, 0600);
 		if (testfd < 0)
 			err(1, "creating " TESTFILE);
 
@@ -51,9 +56,11 @@ static void do_read_bandwidth(int fd, u32 runs,
 		u32 i;
 
 		for (i = 0; i < runs; i++) {
+			int r;
 			lseek(testfd, 0, SEEK_SET);
-			if (read(testfd, pa, READ_SIZE*runs) != READ_SIZE*runs)
-				err(1, "reading from " TESTFILE);
+			r = read(testfd, pa, READ_SIZE*runs);
+			if (r != READ_SIZE*runs)
+				err(1, "reading from " TESTFILE " gave %i", r);
 		}
 		send_ack(fd, from, fromlen);
 	}
