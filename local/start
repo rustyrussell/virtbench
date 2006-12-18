@@ -1,0 +1,5 @@
+#! /bin/sh
+
+# We need 8 dummy interfaces, so virtclient can bring them up and set ifaddr.
+modprobe -r dummy
+modprobe dummy numdummies=8

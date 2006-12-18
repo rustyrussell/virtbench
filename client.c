@@ -1,9 +1,13 @@
 /* The client which runs inside the virtual machine. */
+#include <unistd.h>
+#include <stdio.h>
 #include <net/if.h>
 #include <err.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <net/route.h>
+#include <sys/types.h>
 #include <assert.h>
 #include <stdlib.h>
 #include "benchmarks.h"
@@ -39,25 +43,12 @@ void send_ack(int sock, struct sockaddr *from, socklen_t *fromlen)
 	sendto(sock, &result, sizeof(result), 0, from, *fromlen);
 }
 
-static void dotted_to_addr(struct in_addr *addr, const char *dotted)
+static u32 dotted_to_addr(const char *dotted)
 {
-	unsigned char *addrp;
-	char *p, *q;
-	int i;
-	char buf[20];
+	unsigned int byte[4];
 
-	/* copy dotted string, because we need to modify it */
-	strncpy(buf, dotted, sizeof(buf) - 1);
-	addrp = (unsigned char *) &(addr->s_addr);
-
-	p = buf;
-	for (i = 0; i < 3; i++) {
-		if ((q = strchr(p, '.')) == NULL)
-			errx(1, "badly formed ip address '%s'", dotted);
-		addrp[i] = (unsigned char)atoi(p);
-		p = q + 1;
-	}
-	addrp[3] = (unsigned char)atoi(p);
+	sscanf(dotted, "%u.%u.%u.%u", &byte[0], &byte[1], &byte[2], &byte[3]);
+	return htonl((byte[0]<<24) | (byte[1]<<16) | (byte[2]<<8) | byte[3]);
 }
 
 static struct in_addr setup_network(const char *devname, const char *addrstr)
@@ -68,24 +59,77 @@ static struct in_addr setup_network(const char *devname, const char *addrstr)
 	struct sockaddr_in *sin = (struct sockaddr_in *)&ifr.ifr_addr;
 
 	strcpy(ifr.ifr_name, devname);
-	dotted_to_addr(&addr, addrstr);
+	addr.s_addr = dotted_to_addr(addrstr);
 	sin->sin_family = AF_INET;
 	sin->sin_addr = addr;
 	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 	if (fd < 0)
 		err(1, "opening IP socket");
 	if (ioctl(fd, SIOCSIFADDR, &ifr) != 0)
-		err(1, "Setting interface address");
+		err(1, "Setting interface address for %s", devname);
 	ifr.ifr_flags = IFF_UP;
 	if (ioctl(fd, SIOCSIFFLAGS, &ifr) != 0)
-		err(1, "Bringing interface up");
+		err(1, "Bringing interface %s up", devname);
+	close(fd);
 
 	return addr;
 }
 
+static void add_default_route(const char *devname)
+{
+	struct rtentry rt;
+	struct sockaddr_in *sin;
+	int fd;
+
+	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if (fd < 0)
+		err(1, "opening IP socket");
+
+	memset(&rt, 0, sizeof(rt));
+	sin = (struct sockaddr_in *)&rt.rt_dst;
+	sin->sin_family = AF_INET;
+	sin->sin_addr.s_addr = INADDR_ANY;
+	rt.rt_gateway = rt.rt_genmask = rt.rt_dst;
+	rt.rt_dev = (char *)devname;
+	rt.rt_flags = 0;
+	if (ioctl(fd, SIOCADDRT, &rt) != 0)
+		err(1, "adding route");
+	close(fd);
+}
+
+static void remove_base_route(const char *devname, u32 devaddr)
+{
+	struct rtentry rt;
+	struct sockaddr_in *sin;
+	int fd;
+
+	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if (fd < 0)
+		err(1, "opening IP socket");
+
+	memset(&rt, 0, sizeof(rt));
+	sin = (struct sockaddr_in *)&rt.rt_dst;
+	sin->sin_family = AF_INET;
+	sin->sin_addr.s_addr = (devaddr & htonl(0xFFFFFF00));
+
+	sin = (struct sockaddr_in *)&rt.rt_genmask;
+	sin->sin_family = AF_INET;
+	sin->sin_addr.s_addr = htonl(0xFFFFFF00);
+
+	sin = (struct sockaddr_in *)&rt.rt_gateway;
+	sin->sin_family = AF_INET;
+	sin->sin_addr.s_addr = INADDR_ANY;
+
+	rt.rt_dev = (char *)devname;
+	rt.rt_flags = 0;
+	if (ioctl(fd, SIOCDELRT, &rt) != 0)
+		err(1, "deleting route");
+	close(fd);
+}
+
 static void __attribute__((noreturn)) usage(void)
 {
-	errx(1, "Usage: init [ifname ifaddr]\n");
+	errx(1, "Usage: init extifname ifaddr [intifname]\n");
 }
 
 int main(int argc, char *argv[])
@@ -100,11 +144,19 @@ int main(int argc, char *argv[])
 	if (argc == 2)
 		exec_test(argv[1]);
 
-	if (argc != 1 && argc != 3)
+	if (argc != 3 && argc != 4)
 		usage();
 
-	if (argc == 3)
+	if (argc >= 3) {
 		addr = setup_network(argv[1], argv[2]);
+		add_default_route(argv[1]);
+
+		if (argc == 4) {
+			setup_network(argv[3], argv[2]);
+			/* We don't want local traffic out external iface */
+			remove_base_route(argv[1], addr.s_addr);
+		}
+	}
 
 	sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sock < 0)

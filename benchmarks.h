@@ -37,7 +37,7 @@ void exec_test(char *runstr);
 
 static inline u32 clientip(int dst)
 {
-	/* You still need to htonl this... */
-	return 0x0A131300 + dst;
+	/* 192.168.13.x: you still need to htonl this... */
+	return 0xC0A81300 + dst;
 }
 #endif	/* VIRTBENCH_BENCHMARKS_H */

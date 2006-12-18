@@ -3,11 +3,6 @@
 # For local tests, we just run the process.  We could bind to remote
 # CPUs if we wanted.
 
-# We need 8 dummy interfaces, so virtclient can bring them up and set ifaddr.
-if lsmod | grep -wq dummy; then :; else
-    modprobe dummy numdummies=8
-fi
-
 # Redirect everything so this doesn't hold socket open.
 ./virtclient dummy$1 $2 >/dev/tty < /dev/null 2>&1 &
 jobs -p %1

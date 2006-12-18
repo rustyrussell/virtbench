@@ -142,7 +142,7 @@ static void setup_bench(u32 dst, const char *benchname, const void *opts,
 	if (!send_to_client(dst, str, sizeof(str)))
 		err(1, "sending setup for %s to client %i", benchname, dst);
 
-	start_timeout_timer(1000);
+	start_timeout_timer(5000);
 	ok = recv_from_client();
 	stop_timeout_timer();
 	if (!ok)
@@ -165,20 +165,23 @@ static char *talloc_grab_file(const void *ctx, FILE *file)
 	return ret;
 }
 
-static int destroy_machine(char *name)
+static int do_command(const char *cmd)
 {
-	char *cmd;
 	FILE *f;
 	int status;
 
-	cmd = talloc_asprintf(NULL, "%s/stop_machine %s", virtdir, name);
 	f = popen(cmd, "r");
-	if (!f) {
-		warn("Could not popen '%s'", cmd);
+	if (!f)
 		return 0;
-	}
+
 	status = fclose(f);
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+	return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+static int destroy_machine(char *name)
+{
+	char *cmd = talloc_asprintf(NULL, "%s/stop_machine %s", virtdir, name);
+	if (!do_command(cmd))
 		warnx("'%s' failed", cmd);
 	talloc_free(cmd);
 	return 0;
@@ -190,12 +193,27 @@ static int destroy_machine(char *name)
 	((u8)(ip >> 8)),			\
 	((u8)(ip))
 
+static int stop(char *unused)
+{
+	char *cmd = talloc_asprintf(NULL, "%s/stop", virtdir);
+	if (!do_command(cmd))
+		warnx("'%s' failed", cmd);
+	talloc_free(cmd);
+	return 0;
+}
+
 static char **bringup_machines(void)
 {
 	unsigned int i, runs;
 	char **names;
 	bool up[NUM_MACHINES] = { false };
 	bool some_down;
+	char *startcmd;
+
+	startcmd = talloc_asprintf(NULL, "%s/start", virtdir);
+	do_command(startcmd);
+	talloc_steal(talloc_autofree_context(), startcmd);
+	talloc_set_destructor(startcmd, stop);
 
 	names = talloc_array(talloc_autofree_context(), char *, NUM_MACHINES);
 
@@ -217,6 +235,7 @@ static char **bringup_machines(void)
 		if (streq(names[i], ""))
 			errx(1, "'%s' did not give a name", cmd);
 		talloc_set_destructor(names[i], destroy_machine);
+		talloc_reference(names[i], startcmd);
 	}
 
 	for (runs = 0; runs < 300; runs++) {
