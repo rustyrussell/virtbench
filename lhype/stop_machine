@@ -1,0 +1,5 @@
+#! /bin/sh
+
+. lhype/SETTINGS
+
+kill $1

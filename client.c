@@ -43,12 +43,15 @@ void send_ack(int sock, struct sockaddr *from, socklen_t *fromlen)
 	sendto(sock, &result, sizeof(result), 0, from, *fromlen);
 }
 
-static u32 dotted_to_addr(const char *dotted)
+/* Boot parameters can't have . in them, so we accept / too. */
+static u32 dotted_to_addr(const char *ipaddr)
 {
-	unsigned int byte[4];
+	unsigned int b[4];
 
-	sscanf(dotted, "%u.%u.%u.%u", &byte[0], &byte[1], &byte[2], &byte[3]);
-	return htonl((byte[0]<<24) | (byte[1]<<16) | (byte[2]<<8) | byte[3]);
+	if (sscanf(ipaddr, "%u.%u.%u.%u", &b[0], &b[1], &b[2], &b[3]) != 4
+	    && sscanf(ipaddr, "%u/%u/%u/%u", &b[0], &b[1], &b[2], &b[3]) != 4)
+		errx(1, "invalid ip address '%s'", ipaddr);
+	return htonl((b[0]<<24) | (b[1]<<16) | (b[2]<<8) | b[3]);
 }
 
 static struct in_addr setup_network(const char *devname, const char *addrstr)
@@ -168,6 +171,7 @@ int main(int argc, char *argv[])
 	if (bind(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
 		err(1, "binding socket");
 
+	printf("virtclient ready\n");
 	while ((len = recvfrom(sock, &msg, sizeof(msg), 0, &from, &fl)) >= 4) {
 		struct benchmark *b;
 		b = find_bench(msg.bench);

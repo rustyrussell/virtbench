@@ -17,7 +17,8 @@
 #include "stdrusty.h"
 #include "benchmarks.h"
 
-#define NUM_MACHINES 8
+//#define NUM_MACHINES 8
+#define NUM_MACHINES 2
 #define MAX_TEST_TIME ((u64)20)
 
 static void __attribute__((noreturn)) usage(bool showbench)

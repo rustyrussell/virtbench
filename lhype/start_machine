@@ -1,0 +1,21 @@
+#! /bin/sh
+
+. lhype/SETTINGS
+
+if [ -b "$ROOT_DEVICE" ]; then
+    mount $ROOT_DEVICE /mnt
+    BLOCK=$ROOT_DEVICE
+else
+    mount -o loop $ROOT_FILE-$1 /mnt
+    BLOCK=$ROOT_FILE-$1
+fi
+
+cp virtclient /mnt
+rm -f /mnt/tmp/*
+umount /mnt
+
+# Redirect everything so this doesn't hold socket open.
+$LHYPE_ADD --verbose 64m $1 /boot/vmlinux-exp --block=$BLOCK --tunnet=192.168.12.$1 --sharenet=$SHARENET_FILE root=/dev/lhba init=/virtclient eth0 `echo $2 | tr . /` eth1 > $LOGFILES-$1 2>&1 < /dev/null &
+jobs -p %1
+sleep 5
+route add -host $2 dev tap$1

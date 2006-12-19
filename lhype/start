@@ -1,0 +1,8 @@
+#! /bin/sh
+
+set -e
+
+. lhype/SETTINGS
+
+rm -f $LOGFILES*
+rm -f $SHARENET_FILE
