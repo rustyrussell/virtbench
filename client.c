@@ -135,6 +135,7 @@ static void __attribute__((noreturn)) usage(void)
 	errx(1, "Usage: init extifname ifaddr [intifname]\n");
 }
 
+char *argv0;
 int main(int argc, char *argv[])
 {
 	int sock, len, set = 1;
@@ -142,6 +143,7 @@ int main(int argc, char *argv[])
 	struct message msg;
 	struct in_addr addr = { .s_addr = INADDR_ANY };
 
+	argv0 = argv[0];
 	if (argc == 2)
 		exec_test(argv[1]);
 

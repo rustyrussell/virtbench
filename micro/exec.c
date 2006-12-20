@@ -6,9 +6,10 @@
 #include <err.h>
 #include "../benchmarks.h"
 
+extern char *argv0;
 void exec_test(char *runstr)
 {
-	char *argv[] = { "./virtclient", runstr, NULL };
+	char *argv[] = { argv0, runstr, NULL };
 	extern char **environ;
 	int i;
 
@@ -21,8 +22,8 @@ void exec_test(char *runstr)
 	}
 	if (i == -1)
 		exit(0);
-	execve("./virtclient", argv, environ);
-	exit(1);
+	execve(argv[0], argv, environ);
+	err(1, "Failed to exec '%s'", argv[0]);
 }
 
 static void do_syscall_exec(int fd, u32 runs,
