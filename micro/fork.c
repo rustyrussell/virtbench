@@ -6,10 +6,9 @@
 #include "../benchmarks.h"
 
 static void do_fork(int fd, u32 runs,
-		    struct sockaddr *from, socklen_t *fromlen,
 		    struct benchmark *bench, const void *opts)
 {
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 
 	if (wait_for_start(fd)) {
 		unsigned int i;
@@ -24,7 +23,7 @@ static void do_fork(int fd, u32 runs,
 				wait(NULL);
 			}
 		}
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 }
 

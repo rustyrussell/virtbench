@@ -4,11 +4,9 @@
 #include "benchmarks.h"
 
 /* They use this to see if we're alive yet. */
-static void do_ping(int fd, u32 runs,
-		    struct sockaddr *from, socklen_t *fromlen,
-		    struct benchmark *bench, const void *opts)
+static void do_ping(int fd, u32 runs, struct benchmark *b, const void *opts)
 {
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 }
 
 struct benchmark ping __attribute__((section("benchmarks")))

@@ -3,10 +3,9 @@
 #include "../benchmarks.h"
 
 static void do_syscall_bench(int fd, u32 runs,
-			     struct sockaddr *from, socklen_t *fromlen,
 			     struct benchmark *bench, const void *opts)
 {
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 
 	if (wait_for_start(fd)) {
 		u32 i;
@@ -14,7 +13,7 @@ static void do_syscall_bench(int fd, u32 runs,
 		for (i = 0; i < runs; i++)
 			asm volatile("int $0x80"
 				     : "=a"(dummy) : "a"(__NR_getppid));
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 }
 

@@ -15,7 +15,7 @@ rm -f /mnt/tmp/*
 umount /mnt
 
 # Redirect everything so this doesn't hold socket open.
-$LHYPE_ADD --verbose 64m $1 /boot/vmlinux-exp --block=$BLOCK --tunnet=192.168.12.$1 --sharenet=$SHARENET_FILE root=/dev/lhba init=/virtclient eth0 `echo $2 | tr . /` eth1 > $LOGFILES-$1 2>&1 < /dev/null &
+$LHYPE_ADD 96m $1 /boot/vmlinux-exp --block=$BLOCK --tunnet=192.168.12.$1 --sharenet=$SHARENET_FILE root=/dev/lhba rw debug init=/virtclient eth0 `echo $2 | tr . /` eth1 > $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
-sleep 5
+sleep 1
 route add -host $2 dev tap$1

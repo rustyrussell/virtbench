@@ -13,7 +13,7 @@ static const char fmtstr[] = "Time to walk memory " __stringify(MEMBURN_SIZE) ":
 static char *mem = NULL;
 static unsigned int pagesize;
 
-static unsigned int setup(int fd, struct sockaddr *from, socklen_t *fromlen)
+static unsigned int setup(int fd)
 {
 	unsigned int i;
 
@@ -28,35 +28,33 @@ static unsigned int setup(int fd, struct sockaddr *from, socklen_t *fromlen)
 	for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
 		mem[i] = i;
 
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 	return wait_for_start(fd);
 }
 
 static void do_memburn_linear(int fd, u32 runs,
-			      struct sockaddr *from, socklen_t *fromlen,
 			      struct benchmark *bench, const void *opts)
 {
 	unsigned int r, i;
 
-	if (setup(fd, from, fromlen)) {
+	if (setup(fd)) {
 		for (r = 0; r < runs; r++)
 			for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
 				mem[i] = i;
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 }
 
 static void do_memburn_random(int fd, u32 runs,
-			      struct sockaddr *from, socklen_t *fromlen,
 			      struct benchmark *bench, const void *opts)
 {
 	unsigned int r, i;
 
-	if (setup(fd, from, fromlen)) {
+	if (setup(fd)) {
 		for (r = 0; r < runs; r++)
 			for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
 				mem[random() % MEMBURN_SIZE] = i;
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 }
 

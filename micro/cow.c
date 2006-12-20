@@ -6,9 +6,7 @@
 #include <err.h>
 #include "../benchmarks.h"
 
-static void do_cow(int fd, u32 runs,
-		   struct sockaddr *from, socklen_t *fromlen,
-		   struct benchmark *bench, const void *opts)
+static void do_cow(int fd, u32 runs, struct benchmark *bench, const void *opts)
 {
 	unsigned int i;
 	int *maps[runs];
@@ -27,14 +25,14 @@ static void do_cow(int fd, u32 runs,
 			err(1, "mapping /tmp/cow_test");
 	}
 
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 
 	if (wait_for_start(fd)) {
 		unsigned int i;
 
 		for (i = 0; i < runs; i++)
 			maps[i][0] = 1;
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 
 	for (i = 0; i < runs; i++)

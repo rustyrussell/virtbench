@@ -26,7 +26,6 @@ void exec_test(char *runstr)
 }
 
 static void do_syscall_exec(int fd, u32 runs,
-			    struct sockaddr *from, socklen_t *fromlen,
 			    struct benchmark *bench, const void *opts)
 {
 	char runstr[CHAR_SIZE(int)];
@@ -36,7 +35,7 @@ static void do_syscall_exec(int fd, u32 runs,
 
 	switch (fork()) {
 	case 0:
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 
 		if (wait_for_start(fd))
 			exec_test(runstr);
@@ -48,7 +47,7 @@ static void do_syscall_exec(int fd, u32 runs,
 	default:
 		wait(&status);
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
-			send_ack(fd, from, fromlen);
+			send_ack(fd);
 		else
 			errx(1, "child failed");
 	}

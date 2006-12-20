@@ -23,7 +23,7 @@
 
 static void __attribute__((noreturn)) usage(bool showbench)
 {
-	fprintf(stderr, "Usage: virtbench <virt-type> [benchmark]\n");
+	fprintf(stderr, "Usage: virtbench [--progress] <virt-type> [benchmark]\n");
 	if (showbench) {
 		struct benchmark *b;
 
@@ -35,7 +35,8 @@ static void __attribute__((noreturn)) usage(bool showbench)
 }
 
 static const char *virtdir;
-static int udpsock;
+static int sockets[NUM_MACHINES] = { [0 ... NUM_MACHINES-1] = -1 };
+static bool progress = false;
 
 static void start_timeout_timer(unsigned int msecs)
 {
@@ -65,14 +66,7 @@ static void start_timer(struct timeval *start)
 
 static bool send_to_client(int dst, const void *buf, unsigned int len)
 {
-	struct sockaddr_in saddr;
-
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = 6099;
-	saddr.sin_addr.s_addr = htonl(clientip(dst));
-
-	return sendto(udpsock, buf, len, 0, (void *)&saddr, sizeof(saddr))
-		== len;
+	return write(sockets[dst], buf, len) == len;
 }
 
 static void send_start_to_client(int dst)
@@ -83,32 +77,72 @@ static void send_start_to_client(int dst)
 		err(1, "sending start to %i", dst);
 }
 
-static bool recv_from_client(void)
+static void recv_from_client(int dst)
 {
 	int ans;
-
-	if (recv(udpsock, &ans, sizeof(ans), 0) != sizeof(ans)) {
+	switch (read(sockets[dst], &ans, sizeof(ans))) {
+	case sizeof(ans):
+		return;
+	case -1:
 		if (errno == EINTR)
 			errno = ETIMEDOUT;
-		return false;
+		err(1, "reading reply from client %i", dst);
+	case 0:
+		errx(1, "client %i closed connection", dst);
+	default:
+		err(1, "strange read reply from client %i", dst);
 	}
-	return ans == 0;
 }
 
-static u64 end_test(const struct timeval *start, int clients)
+#define HIPQUAD(ip)				\
+	((u8)(ip >> 24)),			\
+	((u8)(ip >> 16)),			\
+	((u8)(ip >> 8)),			\
+	((u8)(ip))
+
+static int set_fds(fd_set *fds, const int clients[], unsigned num)
 {
-	int i;
-	struct timeval end;
+	int i, max_fd = 0;
 
-	for (i = 0; i < clients; i++)
-		if (!recv_from_client())
-			err(1, "receiving reply");
+	FD_ZERO(fds);
+	for (i = 0; i < num; i++) {
+		FD_SET(sockets[clients[i]], fds);
+		max_fd = max(max_fd, sockets[clients[i]]);
+	}
+	return max_fd;
+}
 
-	gettimeofday(&end, NULL);
-	stop_timeout_timer();
+static u64 end_test(const struct timeval *start,
+		    const int clients[], unsigned num)
+{
+	unsigned int i, num_done;
+	struct timeval end, timeout;
+	fd_set orig_rfds, rfds;
+	int max_fd;
 
-	return (end.tv_sec - start->tv_sec) * (u64)1000000000 
-		+ (end.tv_usec - start->tv_usec) * (u64)1000;
+	max_fd = set_fds(&orig_rfds, clients, num);
+	rfds = orig_rfds;
+
+	timeout.tv_sec = MAX_TEST_TIME;
+	timeout.tv_usec = 0;
+	num_done = 0;
+	while (select(max_fd+1, &rfds, NULL, NULL, &timeout)) {
+		for (i = 0; i < num; i++) {
+			if (FD_ISSET(sockets[clients[i]], &rfds)) {
+				recv_from_client(clients[i]);
+				num_done++;
+				if (num_done == num) {
+					gettimeofday(&end, NULL);
+					return (end.tv_sec - start->tv_sec)
+						* (u64)1000000000 
+						+ (end.tv_usec-start->tv_usec)
+						* (u64)1000;
+				}
+			}
+		}
+		rfds = orig_rfds;
+	}
+	err(1, "receiving reply");
 }
 
 /* We don't want timeout to kill us, just abort recv. */
@@ -116,38 +150,46 @@ static void wakeup(int signo)
 {
 }
 
-static bool ping_client(u32 dst)
+static int connect_to_client(u32 dst)
 {
-	char str[] = "\0\0\0\0ping";
+	struct sockaddr_in saddr;
+	int sock;
 	bool ok;
 
-	if (!send_to_client(dst, str, sizeof(str)))
-		return false;
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		err(1, "creating socket");
 
-	start_timeout_timer(50);
-	ok = recv_from_client();
+	saddr.sin_family = AF_INET;
+	saddr.sin_port = 6099;
+	saddr.sin_addr.s_addr = htonl(clientip(dst));
+
+	start_timeout_timer(100);
+	ok = (connect(sock, (void *)&saddr, sizeof(saddr)) == 0);
 	stop_timeout_timer();
-	return ok;
+	if (ok)
+		return sock;
+	if (errno != EINTR)
+		usleep(100000);
+	close(sock);
+	return -1;
 }
 
 static void setup_bench(u32 dst, const char *benchname, const void *opts,
 			int optlen, int runs)
 {
-	bool ok;
 	char str[sizeof(runs) + strlen(benchname) + 1 + optlen];
 
 	memcpy(str, &runs, sizeof(runs));
 	strcpy(str + sizeof(runs), benchname);
 	memcpy(str + sizeof(runs) + strlen(benchname)+1, opts, optlen);
 
+	start_timeout_timer(50000);
 	if (!send_to_client(dst, str, sizeof(str)))
 		err(1, "sending setup for %s to client %i", benchname, dst);
 
-	start_timeout_timer(5000);
-	ok = recv_from_client();
+	recv_from_client(dst);
 	stop_timeout_timer();
-	if (!ok)
-		err(1, "client %i acking setup for %s", dst, benchname);
 }
 
 /* Simple routine to suck a FILE * dry. */
@@ -188,12 +230,6 @@ static int destroy_machine(char *name)
 	return 0;
 }
 
-#define HIPQUAD(ip)				\
-	((u8)(ip >> 24)),			\
-	((u8)(ip >> 16)),			\
-	((u8)(ip >> 8)),			\
-	((u8)(ip))
-
 static int stop(char *unused)
 {
 	char *cmd = talloc_asprintf(NULL, "%s/stop", virtdir);
@@ -207,7 +243,6 @@ static char **bringup_machines(void)
 {
 	unsigned int i, runs;
 	char **names;
-	bool up[NUM_MACHINES] = { false };
 	bool some_down;
 	char *startcmd;
 
@@ -242,14 +277,15 @@ static char **bringup_machines(void)
 	for (runs = 0; runs < 300; runs++) {
 		some_down = false;
 		for (i = 0; i < NUM_MACHINES; i++) {
-			if (!up[i]) {
-				up[i] = ping_client(i);
-				if (!up[i])
-					some_down = true;
-				else {
-					printf(".");
-					fflush(stdout);
-				}
+			if (sockets[i] >= 0)
+				continue;
+
+			sockets[i] = connect_to_client(i);
+			if (sockets[i] < 0)
+				some_down = true;
+			else {
+				printf(".");
+				fflush(stdout);
 			}
 		}
 		if (!some_down)
@@ -263,52 +299,52 @@ static char **bringup_machines(void)
 }
 
 #define MAX_RESULTS 64
-static unsigned pick_outlier(const u64 times[MAX_RESULTS])
+static void pick_outliers(const u64 times[MAX_RESULTS],
+			  bool outliers[MAX_RESULTS])
 {
-	u64 avg = 0, worstres = 0;
-	unsigned int i, worst;
+	unsigned int best_neighbours = 0, best = 0;
+	unsigned int i;
 
-	for (i = 0; i < MAX_RESULTS; i++)
-		avg += times[i];
-	avg /= MAX_RESULTS;
-
-	worst = MAX_RESULTS;
 	for (i = 0; i < MAX_RESULTS; i++) {
-		u64 diff;
-		if (avg > times[i])
-			diff = avg - times[i];
-		else
-			/* Favour discarding high ones. */
-			diff = (times[i] - avg) * 2;;
-		/* More than 10% == outlier. */
-		if (diff * 10 > avg && diff > worstres) {
-			worst = i;
-			worstres = diff;
+		unsigned int j, neighbours = 0;
+		for (j = 0; j < MAX_RESULTS; j++) {
+			if (abs(times[i] - times[j]) * 10 < times[i])
+				neighbours++;
+		}
+		if (neighbours > best_neighbours) {
+			best_neighbours = neighbours;
+			best = i;
 		}
 	}
 
-	return worst;
+	for (i = 0; i < MAX_RESULTS; i++) {
+		u64 diff;
+		if (times[best] > times[i])
+			diff = times[best] - times[i];
+		else
+			/* Favour discarding high ones. */
+			diff = (times[i] - times[best]) * 2;
+
+		/* More than 10% == outlier. */
+		outliers[i] = (diff * 10 > times[best]);
+		if (progress && outliers[i]) printf("!");
+	}
 }
 
 /* Try to get a stable result. */
-static int next_place(u64 times[MAX_RESULTS], int *data)
+static int next_place(int prev,
+		      const u64 times[MAX_RESULTS],
+		      bool outliers[MAX_RESULTS])
+
 {
-	unsigned int bad;
-
-	/* First we fill in all the results. */
-	if (*data < MAX_RESULTS)
-		return (*data)++;
-
-	bad = pick_outlier(times);
-	if (bad == MAX_RESULTS)
-		return -1;
-
-	/* Avoid replacing the same one twice. */
-	if (bad + MAX_RESULTS + 1 == *data)
-		bad = random() % MAX_RESULTS;
-
-	*data = bad + MAX_RESULTS + 1;
-	return bad;
+	if (prev == MAX_RESULTS-1) {
+		pick_outliers(times, outliers);
+		prev = -1;
+	}
+	for (prev++; prev < MAX_RESULTS; prev++)
+		if (outliers[prev])
+			return prev;
+	return -1;
 }
 
 static u64 average(u64 times[MAX_RESULTS])
@@ -323,100 +359,113 @@ static u64 average(u64 times[MAX_RESULTS])
 
 u64 do_single_bench(struct benchmark *bench)
 {
-	int data, i, slot;
-	u64 runs, best = -1ULL;
+	int slot;
+	u64 runs = 0, best = -1ULL;
 	u64 times[MAX_RESULTS];
-	unsigned int dst = random() % NUM_MACHINES;
+	int client[1] = { random() % NUM_MACHINES };
+	bool outliers[MAX_RESULTS];
 
-	for (i = 0; i < 64; i++) {
-		u64 avg;
-
-	next:
-		if (i == 0)
-			runs = 0;
-		else
-			runs = (u64)1<<i;
-		data = 0;
-		while ((slot = next_place(times, &data)) != -1) {
+	for (;;) {
+		memset(outliers, 0xFF, sizeof(outliers));
+		slot = -1;
+		if (progress)
+			printf("%llu runs:", runs);
+		while ((slot = next_place(slot, times, outliers)) != -1) {
 			struct timeval start;
-			setup_bench(dst, bench->name, "", 0, runs);
+			setup_bench(client[0], bench->name, "", 0, runs);
 			start_timer(&start);
-			send_start_to_client(dst);
-			times[slot] = end_test(&start, 1);
+			send_start_to_client(client[0]);
+			times[slot] = end_test(&start, client, 1);
+			if (progress) {
+				printf(".");
+				fflush(stdout);
+			}
 			if (times[slot] < best)
 				best = times[slot];
-			/* Was this the warmup? */
-			if (runs == 0 && slot == MAX_RESULTS-1) {
-				i = 4;
-				goto next;
-			}
+
+			/* If we do MAX_RESULTS and average is less
+			 * than 256 times the best result, we need to
+			 * increase number of runs. */
+			if (slot == MAX_RESULTS-1
+			    && average(times) < best * 256)
+				break;
 		}
 
-		avg = average(times);
-		/* We use "best" as a guestimate of the overhead. */
-		if (avg > best * 256)
-			return (avg - best) / runs;
+		if (!runs)
+			runs = 1;
+		else if (slot == -1)
+			return (average(times) - best) / runs;
+		else if (runs == 1) {
+			/* Jump to approx how many we'd need... */
+			while (runs * (average(times) - best) < 128 * best)
+				runs <<= 1;
+		} else
+			runs <<= 1;
 	}
 	assert(0);
 }
 
 u64 do_pair_bench(struct benchmark *bench)
 {
-	int mach1, mach2;
-	u32 ip1, ip2;
-	int data, i, slot;
-	u64 runs, best = -1ULL;
+	int slot;
+	u64 runs = 0, best = -1ULL;
 	u64 times[MAX_RESULTS];
+	int clients[2];
+	bool outliers[MAX_RESULTS];
 
-	mach1 = (random() % NUM_MACHINES);
+	clients[0] = (random() % NUM_MACHINES);
 	do {
-		mach2 = (random() % NUM_MACHINES);
-	} while (mach2 == mach1);
+		clients[1] = (random() % NUM_MACHINES);
+	} while (clients[1] == clients[0]);
 
-	ip1 = clientip(mach1);
-	ip2 = clientip(mach2);
-
-	for (i = 0; i < 64; i++) {
-		u64 avg;
-
-	next:
-		if (i == 0)
-			runs = 0;
-		else
-			runs = (u64)1<<i;
-
-		data = 0;
-		while ((slot = next_place(times, &data)) != -1) {
+	for (;;) {
+		slot = -1;
+		memset(outliers, 0xFF, sizeof(outliers));
+		if (progress)
+			printf("%llu runs:", runs);
+		while ((slot = next_place(slot, times, outliers)) != -1) {
 			struct timeval start;
 			struct pair_opt opt;
-			opt.yourip = ip1;
-			opt.otherip = ip2;
+
+			opt.yourip = clientip(clients[0]);
+			opt.otherip = clientip(clients[1]);
 			opt.start = 1;
-			setup_bench(mach1, bench->name, &opt, sizeof(opt),
+			setup_bench(clients[0], bench->name, &opt, sizeof(opt),
 				    runs);
-			opt.yourip = ip2;
-			opt.otherip = ip1;
+			opt.yourip = clientip(clients[1]);
+			opt.otherip = clientip(clients[0]);
 			opt.start = 0;
-			setup_bench(mach2, bench->name, &opt, sizeof(opt),
+			setup_bench(clients[1], bench->name, &opt, sizeof(opt),
 				    runs);
+
 			start_timer(&start);
-			send_start_to_client(mach1);
-			send_start_to_client(mach2);
-			times[slot] = end_test(&start, 2);
+			send_start_to_client(clients[0]);
+			send_start_to_client(clients[1]);
+			times[slot] = end_test(&start, clients, 2);
+			if (progress) {
+				printf(".");
+				fflush(stdout);
+			}
 			if (times[slot] < best)
 				best = times[slot];
 
-			/* Was this the warmup? */
-			if (runs == 0 && slot == MAX_RESULTS-1) {
-				i = 4;
-				goto next;
-			}
+			/* If we do MAX_RESULTS and average is less
+			 * than 256 times the best result, we need to
+			 * increase number of runs. */
+			if (slot == MAX_RESULTS-1
+			    && average(times) < best * 256)
+				break;
 		}
-
-		avg = average(times);
-		/* We use "best" as a guestimate of the overhead. */
-		if (avg > best * 256)
-			return (avg - best) / (1 << i);
+		if (!runs)
+			runs = 1;
+		else if (slot == -1)
+			return (average(times) - best) / runs;
+		else if (runs == 1) {
+			/* Jump to approx how many we'd need... */
+			while (runs * (average(times) - best) < 128 * best)
+				runs <<= 1;
+		} else
+			runs <<= 1;
 	}
 	assert(0);
 }
@@ -427,6 +476,12 @@ int main(int argc, char *argv[])
 	char **names;
 	struct sigaction act;
 	bool done = false;
+
+	if (argv[1] && streq(argv[1], "--progress")) {
+		progress = true;
+		argc--;
+		argv++;
+	}
 
 	if (argc < 2 || argc > 3)
 		usage(false);
@@ -440,19 +495,19 @@ int main(int argc, char *argv[])
 	if (!is_dir(virtdir))
 		usage(false);
 
-	udpsock = socket(PF_INET, SOCK_DGRAM, 0);
-	if (udpsock < 0)
-		err(1, "creating udp socket");
-
 	names = bringup_machines();
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
 		u64 result;
 		if (argv[2] && !streq(b->name, argv[2]))
 			continue;
-		printf("Running benchmark '%s'...", b->name);
-		fflush(stdout);
+		if (progress) {
+			printf("Running benchmark '%s'...", b->name);
+			fflush(stdout);
+		}
 		result = b->server(b);
+		if (progress)
+			printf("\n");
 		printf(b->format, (unsigned int)result);
 		printf("\n");
 		done = true;
@@ -468,7 +523,7 @@ bool wait_for_start(int sock)
 {
 	assert(0);
 }
-void send_ack(int sock, struct sockaddr *from, socklen_t *fromlen)
+void send_ack(int sock)
 {
 	assert(0);
 }

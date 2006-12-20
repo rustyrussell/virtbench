@@ -33,14 +33,14 @@ bool wait_for_start(int sock)
 {
 	struct message msg;
 
-	return recv(sock, &msg, sizeof(msg), 0) == 6;
+	return read(sock, &msg, sizeof(msg)) == 6;
 }
 
-void send_ack(int sock, struct sockaddr *from, socklen_t *fromlen)
+void send_ack(int sock)
 {
 	u32 result = 0;
-
-	sendto(sock, &result, sizeof(result), 0, from, *fromlen);
+	if (write(sock, &result, sizeof(result)) != sizeof(result))
+		err(1, "writing acknowledgement");
 }
 
 /* Boot parameters can't have . in them, so we accept / too. */
@@ -137,11 +137,9 @@ static void __attribute__((noreturn)) usage(void)
 
 int main(int argc, char *argv[])
 {
-	int sock, len;
+	int sock, len, set = 1;
 	struct sockaddr_in saddr;
 	struct message msg;
-	struct sockaddr from;
-	socklen_t fl;
 	struct in_addr addr = { .s_addr = INADDR_ANY };
 
 	if (argc == 2)
@@ -161,25 +159,33 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	sock = socket(PF_INET, SOCK_DGRAM, 0);
+	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
 		err(1, "creating socket");
 
 	saddr.sin_family = AF_INET;
 	saddr.sin_port = 6099;
 	saddr.sin_addr.s_addr = addr.s_addr;
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) != 0)
+		warn("setting SO_REUSEADDR");
 	if (bind(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
 		err(1, "binding socket");
 
-	printf("virtclient ready\n");
-	while ((len = recvfrom(sock, &msg, sizeof(msg), 0, &from, &fl)) >= 4) {
+	if (listen(sock, 0) != 0)
+		err(1, "listening on socket");
+	sock = accept(sock, NULL, 0);
+	if (sock < 0)
+		err(1, "accepting connection on socket");
+
+	while ((len = read(sock, &msg, sizeof(msg))) >= 4) {
 		struct benchmark *b;
 		b = find_bench(msg.bench);
-		b->client(sock, msg.runs, &from, &fl, b,
-			  msg.bench + strlen(msg.bench) + 1);
+		b->client(sock, msg.runs, b, msg.bench+strlen(msg.bench)+1);
 	}
 
-	err(1, "reading from socket");
+	if (len < 0)
+		err(1, "reading from socket");
+	errx(1, "server failed?");
 }
 
 /* Dummy for compiling benchmarks. */

@@ -9,8 +9,7 @@
 #include "../benchmarks.h"
 
 static void do_context_switch(int fd, u32 runs,
-			      struct sockaddr *from, socklen_t *fromlen,
-			      struct benchmark *bench, const void *opts)
+			      struct benchmark *b, const void *opts)
 {
 	char c = 1;
 	int fds1[2], fds2[2], child;
@@ -25,7 +24,7 @@ static void do_context_switch(int fd, u32 runs,
 	if (child > 0) {
 		close(fds1[0]);
 		close(fds2[1]);
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 
 		if (wait_for_start(fd)) {
 			while ((int)runs > 0) {
@@ -34,7 +33,7 @@ static void do_context_switch(int fd, u32 runs,
 				runs -= 2;
 			}
 			if (runs == 0)
-				send_ack(fd, from, fromlen);
+				send_ack(fd);
 		} else
 			kill(child, SIGTERM);
 		waitpid(child, NULL, 0);
@@ -50,7 +49,7 @@ static void do_context_switch(int fd, u32 runs,
 			runs -= 2;
 		}
 		if ((int)runs == -1)
-			send_ack(fd, from, fromlen);
+			send_ack(fd);
 		exit(0);
 	}
 }

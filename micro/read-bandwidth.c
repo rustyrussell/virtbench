@@ -17,7 +17,6 @@ static const char fmtstr[] = "Time to read from disk " __stringify(READ_SIZE) ":
 #define kB * 1024
 
 static void do_read_bandwidth(int fd, u32 runs,
-			      struct sockaddr *from, socklen_t *fromlen,
 			      struct benchmark *bench, const void *opts)
 {
 	int testfd;
@@ -51,7 +50,7 @@ static void do_read_bandwidth(int fd, u32 runs,
 
 	fstat(testfd, &st);
 
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 	if (wait_for_start(fd)) {
 		u32 i;
 
@@ -62,7 +61,7 @@ static void do_read_bandwidth(int fd, u32 runs,
 			if (r != READ_SIZE*runs)
 				err(1, "reading from " TESTFILE " gave %i", r);
 		}
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 	close(testfd);
 	free(p);

@@ -9,7 +9,6 @@ struct benchmark
 	const char *format;
 	u64 (*server)(struct benchmark *bench);
 	void (*client)(int fd, u32 runs,
-		       struct sockaddr *from, socklen_t *fromlen,
 		       struct benchmark *bench, const void *opts);
 };
 
@@ -30,7 +29,7 @@ u64 do_pair_bench(struct benchmark *bench);
 /* Remote (client) side helpers. */
 struct sockaddr;
 bool wait_for_start(int sock);
-void send_ack(int sock, struct sockaddr *from, socklen_t *fromlen);
+void send_ack(int sock);
 void exec_test(char *runstr);
 
 #define _benchmark_ __attribute__((section("benchmarks"), used))

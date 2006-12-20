@@ -13,7 +13,6 @@
 #endif
 
 static void do_read_latency(int fd, u32 runs,
-			    struct sockaddr *from, socklen_t *fromlen,
 			    struct benchmark *bench, const void *opts)
 {
 	int testfd;
@@ -45,7 +44,7 @@ static void do_read_latency(int fd, u32 runs,
 	/* O_DIRECT wants an aligned pointer. */
 	pa = (void *)(((unsigned long)p+st.st_blksize-1) & ~(st.st_blksize-1));
 
-	send_ack(fd, from, fromlen);
+	send_ack(fd);
 	if (wait_for_start(fd)) {
 		u32 i;
 
@@ -54,7 +53,7 @@ static void do_read_latency(int fd, u32 runs,
 			if (read(testfd, pa, st.st_blksize) != st.st_blksize)
 				err(1, "reading from " TESTFILE);
 		}
-		send_ack(fd, from, fromlen);
+		send_ack(fd);
 	}
 	close(testfd);
 	free(p);
