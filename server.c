@@ -202,8 +202,8 @@ static char *talloc_grab_file(const void *ctx, FILE *file)
 	ret[0] = '\0';
 	while (fgets(ret + off, len - off, file)) {
 		off += strlen(ret + off);
-		if (off == len)
-			ret = talloc_realloc(ctx, ret, char, len += 2);
+		if (off == len - 1)
+			ret = talloc_realloc(ctx, ret, char, len *= 2);
 	}
 	return ret;
 }
