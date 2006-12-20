@@ -41,24 +41,19 @@ static void do_pingpong_bench(int fd, u32 runs,
 
 		send_ack(fd);
 
-		printf("pingpong: accepting connection...\n");
 		sock = accept(listen_sock, NULL, 0);
 		if (sock < 0)
 			err(1, "accepting peer connection on socket");
 		close(listen_sock);
-		printf("pingpong: after accept, waiting for start\n");
 	} else {
 		/* We connect to other client. */
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = htons(6100);
 		saddr.sin_addr.s_addr = htonl(opt->otherip);
-		printf("pingpong: connecting to %u.%u.%u.%u...\n",
-		       HIPQUAD(opt->otherip));
 		if (connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)))
 			err(1, "connecting socket");
 
 		send_ack(fd);
-		printf("pingpong: after connect, waiting for start\n");
 	}
 
 	if (wait_for_start(fd)) {
