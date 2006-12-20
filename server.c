@@ -184,7 +184,7 @@ static void setup_bench(u32 dst, const char *benchname, const void *opts,
 	strcpy(str + sizeof(runs), benchname);
 	memcpy(str + sizeof(runs) + strlen(benchname)+1, opts, optlen);
 
-	start_timeout_timer(50000);
+	start_timeout_timer(5000);
 	if (!send_to_client(dst, str, sizeof(str)))
 		err(1, "sending setup for %s to client %i", benchname, dst);
 

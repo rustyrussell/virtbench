@@ -7,8 +7,8 @@ all: virtbench virtclient
 clean:
 	rm -f virtbench virtclient
 
-virtbench: $(SERVERCFILES) Makefile
+virtbench: $(SERVERCFILES) Makefile $(wildcard *.h)
 	$(CC) $(CFLAGS) -o $@ $(SERVERCFILES)
 
-virtclient: $(CLIENTCFILES) Makefile
+virtclient: $(CLIENTCFILES) Makefile $(wildcard *.h)
 	$(CC) $(CFLAGS) -static -o $@ $(CLIENTCFILES)
