@@ -403,8 +403,9 @@ u64 do_single_bench(struct benchmark *bench)
 			return (average(times) - best) / runs;
 		else if (runs == 1) {
 			/* Jump to approx how many we'd need... */
-			while (runs * (average(times) - best) < 128 * best)
+			do {
 				runs <<= 1;
+			} while (runs * (average(times) - best) < 128 * best);
 		} else
 			runs <<= 1;
 	}
