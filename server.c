@@ -138,11 +138,17 @@ static u64 end_test(const struct timeval *start,
 						+ (end.tv_usec-start->tv_usec)
 						* (u64)1000;
 				}
+				FD_CLR(sockets[clients[i]], &orig_rfds);
 			}
 		}
 		rfds = orig_rfds;
 	}
-	err(1, "receiving reply");
+
+	for (i = 0; i < num; i++) {
+		if (FD_ISSET(sockets[clients[i]], &orig_rfds))
+			warnx("no reply from client %i", clients[i]);
+	}
+	exit(1);
 }
 
 /* We don't want timeout to kill us, just abort recv. */

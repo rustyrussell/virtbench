@@ -6,8 +6,11 @@
 #include <err.h>
 #include "../benchmarks.h"
 
-#define MEMBURN_SIZE (64 MB)
-static const char fmtstr[] = "Time to walk memory " __stringify(MEMBURN_SIZE) ": %u nsec";
+#define MEMBURN_SIZE 64 MB
+static const char fmtstr_linear[] 
+= "Time to walk linear " __stringify(MEMBURN_SIZE) ": %u nsec";
+static const char fmtstr_random[] 
+= "Time to walk random " __stringify(MEMBURN_SIZE) ": %u nsec";
 #define MB * 1024 * 1024
 
 static char *mem = NULL;
@@ -59,8 +62,8 @@ static void do_memburn_random(int fd, u32 runs,
 }
 
 struct benchmark memburn_linear _benchmark_
-= { "memburn-linear", fmtstr, do_single_bench, do_memburn_linear };
+= { "memburn-linear", fmtstr_linear, do_single_bench, do_memburn_linear };
 
 struct benchmark memburn_random _benchmark_
-= { "memburn-random", fmtstr, do_single_bench, do_memburn_random };
+= { "memburn-random", fmtstr_random, do_single_bench, do_memburn_random };
 
