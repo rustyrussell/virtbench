@@ -4,3 +4,4 @@ ROOT_FILE=/home/rusty/virtbench-root
 SHARENET_FILE=/tmp/virtbench-lhype-net
 LHYPE_ADD=/root/lhype_add
 LOGFILES=/tmp/virtbench.lhype.log
+KERNEL=/boot/vmlinux-exp
