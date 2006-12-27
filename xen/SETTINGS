@@ -1,0 +1,4 @@
+# Sourced from all the scripts
+ROOT_FILE=$(pwd -P)"/rootfs/virtbench-root"
+LOGFILES=/tmp/virtbench.xen.log
+KERNEL=/boot/vmlinuz-2.6.16.33-xen

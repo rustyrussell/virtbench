@@ -1,0 +1,9 @@
+#!/bin/bash -f
+
+. xen/SETTINGS
+
+ip addr del 192.168.19.254/24 brd 192.168.19.255 dev eth0
+xm list | awk '/^virtbench_/ {print $2}' | \
+	xargs --no-run-if-empty -n1 xm destroy
+/etc/init.d/xend stop
+rm /tmp/virtbench*

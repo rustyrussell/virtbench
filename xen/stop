@@ -1,0 +1,6 @@
+#!/bin/bash
+
+. xen/SETTINGS
+
+ip addr del 192.168.19.254/24 brd 192.168.19.255 dev eth0
+exit 0
