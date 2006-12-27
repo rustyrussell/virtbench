@@ -1,5 +1,5 @@
 # Sourced from all the scripts
-ROOT_FILE=/home/rusty/virtbench-root
+ROOT_FILE=$(pwd -P)"/rootfs/virtbench-root"
 #ROOT_DEVICE=/dev/hdb1
 SHARENET_FILE=/tmp/virtbench-lhype-net
 LHYPE_ADD=/root/lhype_add
