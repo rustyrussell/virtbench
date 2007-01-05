@@ -13,31 +13,25 @@ static const char fmtstr_random[]
 = "Time to walk random " __stringify(MEMBURN_SIZE) ": %u nsec";
 #define MB * 1024 * 1024
 
-static char *mem = NULL;
-static unsigned int pagesize;
-
-static void setup(void)
+static void *setup(void)
 {
 	unsigned int i;
+	char *mem;
 
-	/* Alloc once, so we don't thrash. */
-	if (!mem) {
-		mem = malloc(MEMBURN_SIZE);
-		if (!mem)
-			err(1, "allocating %i bytes", MEMBURN_SIZE);
-		pagesize = getpagesize();
-	}
+	mem = malloc(MEMBURN_SIZE);
+	if (!mem)
+		err(1, "allocating %i bytes", MEMBURN_SIZE);
 
-	for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
+	for (i = 0; i < MEMBURN_SIZE; i+= getpagesize())
 		mem[i] = i;
+	return mem;
 }
 
 static void do_memburn_linear(int fd, u32 runs,
 			      struct benchmark *bench, const void *opts)
 {
-	unsigned int r, i;
-
-	setup();
+	unsigned int r, i, pagesize = getpagesize();
+	char *mem = setup();
 
 	send_ack(fd);
 	if (wait_for_start(fd)) {
@@ -46,15 +40,15 @@ static void do_memburn_linear(int fd, u32 runs,
 				mem[i] = i;
 		send_ack(fd);
 	}
+	free(mem);
 }
 
 static void do_memburn_random(int fd, u32 runs,
 			      struct benchmark *bench, const void *opts)
 {
-	unsigned int r, i;
-	unsigned int random_table[MEMBURN_SIZE / getpagesize()];
-
-	setup();
+	unsigned int r, i, pagesize = getpagesize();;
+	unsigned int random_table[MEMBURN_SIZE / pagesize];
+	char *mem = setup();
 
 	for (i = 0; i < ARRAY_SIZE(random_table); i++)
 		random_table[i] = i * pagesize;
@@ -73,6 +67,7 @@ static void do_memburn_random(int fd, u32 runs,
 				mem[random_table[i]] = i;
 		send_ack(fd);
 	}
+	free(mem);
 }
 
 struct benchmark memburn_linear _benchmark_
