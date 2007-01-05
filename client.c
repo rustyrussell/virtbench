@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <time.h>
 #include "benchmarks.h"
 #include "stdrusty.h"
 
@@ -160,6 +161,9 @@ int main(int argc, char *argv[])
 			remove_base_route(argv[1], addr.s_addr);
 		}
 	}
+
+	/* When run as init, time(NULL) is not very random! */
+	srandom(time(NULL) + argv[1][strlen(argv[1])-1]);
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0)

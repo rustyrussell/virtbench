@@ -16,7 +16,7 @@ static const char fmtstr_random[]
 static char *mem = NULL;
 static unsigned int pagesize;
 
-static unsigned int setup(int fd)
+static void setup(void)
 {
 	unsigned int i;
 
@@ -30,9 +30,6 @@ static unsigned int setup(int fd)
 
 	for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
 		mem[i] = i;
-
-	send_ack(fd);
-	return wait_for_start(fd);
 }
 
 static void do_memburn_linear(int fd, u32 runs,
@@ -40,7 +37,10 @@ static void do_memburn_linear(int fd, u32 runs,
 {
 	unsigned int r, i;
 
-	if (setup(fd)) {
+	setup();
+
+	send_ack(fd);
+	if (wait_for_start(fd)) {
 		for (r = 0; r < runs; r++)
 			for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
 				mem[i] = i;
@@ -52,11 +52,25 @@ static void do_memburn_random(int fd, u32 runs,
 			      struct benchmark *bench, const void *opts)
 {
 	unsigned int r, i;
+	unsigned int random_table[MEMBURN_SIZE / getpagesize()];
 
-	if (setup(fd)) {
+	setup();
+
+	for (i = 0; i < ARRAY_SIZE(random_table); i++)
+		random_table[i] = i * pagesize;
+
+	for (i = 0; i < ARRAY_SIZE(random_table); i++) {
+		unsigned int tmp, r = random() % ARRAY_SIZE(random_table);
+		tmp = random_table[i];
+		random_table[i] = random_table[r];
+		random_table[r] = tmp;
+	}
+
+	send_ack(fd);
+	if (wait_for_start(fd)) {
 		for (r = 0; r < runs; r++)
-			for (i = 0; i < MEMBURN_SIZE; i+= pagesize)
-				mem[random() % MEMBURN_SIZE] = i;
+			for (i = 0; i < ARRAY_SIZE(random_table); i++)
+				mem[random_table[i]] = i;
 		send_ack(fd);
 	}
 }
