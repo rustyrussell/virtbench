@@ -17,8 +17,6 @@
 #include "stdrusty.h"
 #include "benchmarks.h"
 
-//#define NUM_MACHINES 8
-#define NUM_MACHINES 2
 #define MAX_TEST_TIME ((u64)20)
 
 static void __attribute__((noreturn)) usage(bool showbench)
@@ -254,7 +252,7 @@ static char **bringup_machines(void)
 
 	startcmd = talloc_asprintf(NULL, "%s/start", virtdir);
 	do_command(startcmd);
-	talloc_steal(talloc_autofree_context(), startcmd);
+	(void)talloc_steal(talloc_autofree_context(), startcmd);
 	talloc_set_destructor(startcmd, stop);
 
 	names = talloc_array(talloc_autofree_context(), char *, NUM_MACHINES);
