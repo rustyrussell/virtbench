@@ -34,9 +34,4 @@ void exec_test(char *runstr);
 
 #define _benchmark_ __attribute__((section("benchmarks"), used))
 
-static inline u32 clientip(int dst)
-{
-	/* 192.168.19.x: you still need to htonl this... */
-	return 0xC0A81300 + dst + 1;
-}
 #endif	/* VIRTBENCH_BENCHMARKS_H */

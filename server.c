@@ -154,31 +154,6 @@ static void wakeup(int signo)
 {
 }
 
-static int connect_to_client(u32 dst)
-{
-	struct sockaddr_in saddr;
-	int sock;
-	bool ok;
-
-	sock = socket(PF_INET, SOCK_STREAM, 0);
-	if (sock < 0)
-		err(1, "creating socket");
-
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = 6099;
-	saddr.sin_addr.s_addr = htonl(clientip(dst));
-
-	start_timeout_timer(100);
-	ok = (connect(sock, (void *)&saddr, sizeof(saddr)) == 0);
-	stop_timeout_timer();
-	if (ok)
-		return sock;
-	if (errno != EINTR)
-		usleep(100000);
-	close(sock);
-	return -1;
-}
-
 static void setup_bench(u32 dst, const char *benchname, const void *opts,
 			int optlen, int runs)
 {
@@ -243,12 +218,13 @@ static int stop(char *unused)
 	return 0;
 }
 
-static char **bringup_machines(void)
+static char **bringup_machines(int sock)
 {
-	unsigned int i, runs;
+	unsigned int i, done;
 	char **names;
-	bool some_down;
 	char *startcmd;
+	struct sockaddr_in saddr;
+	socklen_t socklen = sizeof(saddr);
 
 	startcmd = talloc_asprintf(NULL, "%s/start", virtdir);
 	do_command(startcmd);
@@ -257,14 +233,19 @@ static char **bringup_machines(void)
 
 	names = talloc_array(talloc_autofree_context(), char *, NUM_MACHINES);
 
+	if (getsockname(sock, (struct sockaddr *)&saddr, &socklen) != 0)
+		err(1, "getting socket name");
+
 	printf("Bringing up machines"); fflush(stdout);
 	for (i = 0; i < NUM_MACHINES; i++) {
 		FILE *f;
 		int status;
 		char *cmd;
 
-		cmd = talloc_asprintf(names, "%s/start_machine %i %i.%i.%i.%i",
-				      virtdir, i, HIPQUAD(clientip(i)));
+		cmd = talloc_asprintf(names, "%s/start_machine %i %i.%i.%i.%i %i",
+				      virtdir, i,
+				      HIPQUAD(saddr.sin_addr.s_addr),
+				      ntohs(saddr.sin_port));
 		f = popen(cmd, "r");
 		if (!f)
 			err(1, "Could not popen '%s'", cmd);
@@ -278,26 +259,20 @@ static char **bringup_machines(void)
 		talloc_reference(names[i], startcmd);
 	}
 
-	for (runs = 0; runs < 300; runs++) {
-		some_down = false;
-		for (i = 0; i < NUM_MACHINES; i++) {
-			if (sockets[i] >= 0)
-				continue;
+	for (done = 0; done < NUM_MACHINES; done++) {
+		int clientid, fd;
 
-			sockets[i] = connect_to_client(i);
-			if (sockets[i] < 0)
-				some_down = true;
-			else {
-				printf(".");
-				fflush(stdout);
-			}
-		}
-		if (!some_down)
-			break;
+		start_timeout_timer(30000);
+		fd = accept(sock, NULL, NULL);
+		if (fd < 0)
+			err(1, "accepting connection from client");
+		stop_timeout_timer();
+		printf("."); fflush(stdout);
+		if (read(fd, &clientid, sizeof(clientid)) != sizeof(clientid))
+			err(1, "reading id from client");
+		sockets[clientid] = fd;
 	}
 	printf("\n");
-	if (some_down)
-		errx(1, "Not all machines came up");
 
 	return names;
 }
@@ -410,6 +385,17 @@ u64 do_single_bench(struct benchmark *bench)
 	assert(0);
 }
 
+static u32 getip(int client)
+{
+	struct sockaddr_in saddr;
+	socklen_t len = sizeof(saddr);
+
+	if (getpeername(sockets[client], (struct sockaddr *)&saddr, &len) != 0)
+		err(1, "getting peer name for client %i", client);
+
+	return ntohl(saddr.sin_addr.s_addr);
+}
+
 u64 do_pair_bench(struct benchmark *bench)
 {
 	int slot;
@@ -432,13 +418,13 @@ u64 do_pair_bench(struct benchmark *bench)
 			struct timeval start;
 			struct pair_opt opt;
 
-			opt.yourip = clientip(clients[0]);
-			opt.otherip = clientip(clients[1]);
+			opt.yourip = getip(clients[0]);
+			opt.otherip = getip(clients[1]);
 			opt.start = 1;
 			setup_bench(clients[0], bench->name, &opt, sizeof(opt),
 				    runs);
-			opt.yourip = clientip(clients[1]);
-			opt.otherip = clientip(clients[0]);
+			opt.yourip = getip(clients[1]);
+			opt.otherip = getip(clients[0]);
 			opt.start = 0;
 			setup_bench(clients[1], bench->name, &opt, sizeof(opt),
 				    runs);
@@ -480,6 +466,7 @@ int main(int argc, char *argv[])
 	struct benchmark *b;
 	char **names;
 	struct sigaction act;
+	int sock;
 	bool done = false;
 
 	if (argv[1] && streq(argv[1], "--progress")) {
@@ -500,7 +487,13 @@ int main(int argc, char *argv[])
 	if (!is_dir(virtdir))
 		usage(false);
 
-	names = bringup_machines();
+	sock = socket(PF_INET, SOCK_STREAM, 0);
+	if (sock < 0)
+		err(1, "creating socket");
+	if (listen(sock, 0) != 0)
+		err(1, "listening on socket");
+
+	names = bringup_machines(sock);
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
 		u64 result;

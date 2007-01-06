@@ -15,7 +15,7 @@ rm -f /mnt/tmp/*
 umount /mnt
 
 # Redirect everything so this doesn't hold socket open.
-$LHYPE_ADD 96m $1 $KERNEL --block=$BLOCK --tunnet=192.168.12.$1 --sharenet=$SHARENET_FILE root=/dev/lhba rw debug init=/virtclient eth0 `echo $2 | tr . /` eth1 > $LOGFILES-$1 2>&1 < /dev/null &
+$LHYPE_ADD 512m $1 $KERNEL --block=$BLOCK --tunnet=192.168.12.$1 --sharenet=$SHARENET_FILE root=/dev/lhba rw debug init=/virtclient $1 `echo $2 | tr . /` $3 eth0 192/168/19/$1 eth1 > $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
 sleep 1
 route add -host $2 dev tap$1

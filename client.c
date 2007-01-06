@@ -133,13 +133,13 @@ static void remove_base_route(const char *devname, u32 devaddr)
 
 static void __attribute__((noreturn)) usage(void)
 {
-	errx(1, "Usage: init extifname ifaddr [intifname]\n");
+	errx(1, "Usage: virtclient clientid serverip serverport [extifname ifaddr [intifname]\n");
 }
 
 char *argv0;
 int main(int argc, char *argv[])
 {
-	int sock, len, set = 1;
+	int sock, len, id;
 	struct sockaddr_in saddr;
 	struct message msg;
 	struct in_addr addr = { .s_addr = INADDR_ANY };
@@ -148,40 +148,36 @@ int main(int argc, char *argv[])
 	if (argc == 2)
 		exec_test(argv[1]);
 
-	if (argc != 3 && argc != 4)
+	if (argc != 4 && argc != 6 && argc != 7)
 		usage();
 
-	if (argc >= 3) {
-		addr = setup_network(argv[1], argv[2]);
-		add_default_route(argv[1]);
+	if (argc >= 6) {
+		addr = setup_network(argv[4], argv[5]);
+		add_default_route(argv[4]);
 
-		if (argc == 4) {
-			setup_network(argv[3], argv[2]);
+		if (argc == 7) {
+			setup_network(argv[6], argv[5]);
 			/* We don't want local traffic out external iface */
-			remove_base_route(argv[1], addr.s_addr);
+			remove_base_route(argv[4], addr.s_addr);
 		}
 	}
 
 	/* When run as init, time(NULL) is not very random! */
-	srandom(time(NULL) + argv[1][strlen(argv[1])-1]);
+	srandom(time(NULL) + atoi(argv[1]));
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
 		err(1, "creating socket");
 
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = 6099;
-	saddr.sin_addr.s_addr = addr.s_addr;
-	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &set, sizeof(set)) != 0)
-		warn("setting SO_REUSEADDR");
-	if (bind(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
-		err(1, "binding socket");
+	saddr.sin_port = htons(atoi(argv[3]));
+	saddr.sin_addr.s_addr = htonl(dotted_to_addr(argv[2]));
 
-	if (listen(sock, 0) != 0)
-		err(1, "listening on socket");
-	sock = accept(sock, NULL, 0);
-	if (sock < 0)
-		err(1, "accepting connection on socket");
+	if (connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
+		err(1, "connecting to server");
+	id = atoi(argv[1]);
+	if (write(sock, &id, sizeof(id)) != sizeof(id))
+		err(1, "sending id to server");
 
 	while ((len = read(sock, &msg, sizeof(msg))) >= 4) {
 		struct benchmark *b;

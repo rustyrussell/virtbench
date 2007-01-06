@@ -1,7 +1,7 @@
 NUM_MACHINES:=4
 
 SERVERCFILES := server.c stdrusty.c talloc.c $(wildcard micro/*.c) $(wildcard inter/*.c)
-CLIENTCFILES := client.c stdrusty.c talloc.c ping.c $(wildcard micro/*.c) $(wildcard inter/*.c)
+CLIENTCFILES := client.c stdrusty.c talloc.c $(wildcard micro/*.c) $(wildcard inter/*.c)
 CFLAGS := -g -O3 -Wall -Wmissing-prototypes -DNUM_MACHINES=$(NUM_MACHINES)
 BASE_ROOTFS:=rootfs/virtbench-root
 ROOTFS:=$(foreach N, $(shell seq 0 `expr $(NUM_MACHINES) - 1`), $(BASE_ROOTFS)-$N)

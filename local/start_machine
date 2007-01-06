@@ -4,5 +4,5 @@
 # CPUs if we wanted.
 
 # Redirect everything so this doesn't hold socket open.
-./virtclient dummy$1 $2 >/dev/tty < /dev/null 2>&1 &
+./virtclient $1 $2 $3 >/dev/tty < /dev/null 2>&1 &
 jobs -p %1
