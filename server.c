@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include "talloc.h"
 #include "stdrusty.h"
 #include "benchmarks.h"
@@ -468,14 +469,28 @@ int main(int argc, char *argv[])
 	struct sigaction act;
 	int sock;
 	bool done = false;
+	struct option lopts[] = {
+		{ "progress", 0, 0, 'p' },
+		{ "help", 0, 0, 'h' },
+		{ 0 },
+	};
+	const char *sopts = "ph";
+	int ch, opt_ind;
 
-	if (argv[1] && streq(argv[1], "--progress")) {
-		progress = true;
-		argc--;
-		argv++;
+	while ((ch = getopt_long(argc, argv, sopts, lopts, &opt_ind)) != -1) {
+		switch (ch) {
+		case 'p':
+			progress = true;
+			break;
+		case 'h':
+		default:
+			usage(false);
+			break;
+		}
 	}
+		
 
-	if (argc < 2 || argc > 3)
+	if ((argc - optind) < 1 || (argc - optind) > 2)
 		usage(false);
 
 	act.sa_handler = wakeup;
@@ -483,7 +498,7 @@ int main(int argc, char *argv[])
 	act.sa_flags = 0;
 	sigaction(SIGALRM, &act, NULL);
 
-	virtdir = argv[1];
+	virtdir = argv[optind];
 	if (!is_dir(virtdir))
 		usage(false);
 
@@ -497,7 +512,7 @@ int main(int argc, char *argv[])
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
 		u64 result;
-		if (argv[2] && !streq(b->name, argv[2]))
+		if (argv[optind + 1] && !streq(b->name, argv[optind + 1]))
 			continue;
 		if (progress) {
 			printf("Running benchmark '%s'...", b->name);
