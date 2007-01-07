@@ -25,10 +25,7 @@ $(BASE_ROOTFS): Makefile $(BASE_ROOTFS).tmp
 
 .INTERMEDIATE: $(BASE_ROOTFS).tmp
 
-rootfs:
-	mkdir $@
-
-$(BASE_ROOTFS).tmp: rootfs
+$(BASE_ROOTFS).tmp:
 	# 50M
 	dd if=/dev/zero of=$@ count=50 bs=1048576
 	mke2fs -q -F $@
