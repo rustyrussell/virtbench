@@ -13,24 +13,24 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <getopt.h>
+#include <net/if.h>
 #include "talloc.h"
 #include "stdrusty.h"
 #include "benchmarks.h"
 
 #define MAX_TEST_TIME ((u64)20)
 
-static void __attribute__((noreturn)) usage(bool showbench)
+static void __attribute__((noreturn)) usage(int exitstatus)
 {
+	struct benchmark *b;
 	fprintf(stderr, "Usage: virtbench [--progress] <virt-type> [benchmark]\n");
-	if (showbench) {
-		struct benchmark *b;
 
-		printf("Benchmarks are:\n");
-		for (b = __start_benchmarks; b < __stop_benchmarks; b++)
-			printf("  %s\n", b->name);
-	}
-	exit(0);
+	printf("Benchmarks are:\n");
+	for (b = __start_benchmarks; b < __stop_benchmarks; b++)
+		printf("  %s\n", b->name);
+	exit(exitstatus);
 }
 
 static const char *virtdir;
@@ -219,13 +219,31 @@ static int stop(char *unused)
 	return 0;
 }
 
+static struct sockaddr_in get_server_addr(int sock)
+{
+	struct ifreq ifr;
+	struct sockaddr_in *sin = (struct sockaddr_in *)&ifr.ifr_addr;
+	struct sockaddr_in saddr;
+	socklen_t socklen = sizeof(saddr);
+
+	/* This assumes we have an eth0. */
+	strcpy(ifr.ifr_name, "eth0");
+	sin->sin_family = AF_INET;
+	if (ioctl(sock, SIOCGIFADDR, &ifr) != 0)
+		err(1, "Getting interface address for eth0");
+
+	if (getsockname(sock, (struct sockaddr *)&saddr, &socklen) != 0)
+		err(1, "getting socket name");
+	saddr.sin_addr = sin->sin_addr;
+	return saddr;
+}
+
 static char **bringup_machines(int sock)
 {
 	unsigned int i, done;
 	char **names;
 	char *startcmd;
-	struct sockaddr_in saddr;
-	socklen_t socklen = sizeof(saddr);
+	struct sockaddr_in addr;
 
 	startcmd = talloc_asprintf(NULL, "%s/start", virtdir);
 	do_command(startcmd);
@@ -234,8 +252,7 @@ static char **bringup_machines(int sock)
 
 	names = talloc_array(talloc_autofree_context(), char *, NUM_MACHINES);
 
-	if (getsockname(sock, (struct sockaddr *)&saddr, &socklen) != 0)
-		err(1, "getting socket name");
+	addr = get_server_addr(sock);
 
 	printf("Bringing up machines"); fflush(stdout);
 	for (i = 0; i < NUM_MACHINES; i++) {
@@ -245,8 +262,8 @@ static char **bringup_machines(int sock)
 
 		cmd = talloc_asprintf(names, "%s/start_machine %i %i.%i.%i.%i %i",
 				      virtdir, i,
-				      HIPQUAD(saddr.sin_addr.s_addr),
-				      ntohs(saddr.sin_port));
+				      HIPQUAD(ntohl(addr.sin_addr.s_addr)),
+				      ntohs(addr.sin_port));
 		f = popen(cmd, "r");
 		if (!f)
 			err(1, "Could not popen '%s'", cmd);
@@ -462,6 +479,20 @@ u64 do_pair_bench(struct benchmark *bench)
 	assert(0);
 }
 
+static bool benchmark_listed(const char *bench, char *argv[])
+{
+	unsigned int i;
+
+	/* No args means "all" */
+	if (!argv[0])
+		return true;
+
+	for (i = 0; argv[i]; i++)
+		if (streq(bench, argv[i]))
+			return true;
+	return false;
+}
+
 int main(int argc, char *argv[])
 {
 	struct benchmark *b;
@@ -483,15 +514,15 @@ int main(int argc, char *argv[])
 			progress = true;
 			break;
 		case 'h':
+			usage(0);
 		default:
-			usage(false);
+			usage(1);
 			break;
 		}
 	}
 		
-
-	if ((argc - optind) < 1 || (argc - optind) > 2)
-		usage(false);
+	if (argc - optind < 1)
+		usage(1);
 
 	act.sa_handler = wakeup;
 	sigemptyset(&act.sa_mask);
@@ -500,7 +531,7 @@ int main(int argc, char *argv[])
 
 	virtdir = argv[optind];
 	if (!is_dir(virtdir))
-		usage(false);
+		usage(1);
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
@@ -512,7 +543,7 @@ int main(int argc, char *argv[])
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
 		u64 result;
-		if (argv[optind + 1] && !streq(b->name, argv[optind + 1]))
+		if (!benchmark_listed(b->name, argv+optind+1))
 			continue;
 		if (progress) {
 			printf("Running benchmark '%s'...", b->name);
@@ -527,7 +558,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!done)
-		usage(true);
+		usage(1);
 	return 0;
 }
 
