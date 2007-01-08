@@ -471,16 +471,22 @@ int main(int argc, char *argv[])
 	bool done = false;
 	struct option lopts[] = {
 		{ "progress", 0, 0, 'p' },
+		{ "csv", 1, 0, 'c' },
 		{ "help", 0, 0, 'h' },
 		{ 0 },
 	};
-	const char *sopts = "ph";
+	const char *sopts = "phc:";
 	int ch, opt_ind;
+	const char *csv_file = 0;
+	FILE *csv_fp = NULL;
 
 	while ((ch = getopt_long(argc, argv, sopts, lopts, &opt_ind)) != -1) {
 		switch (ch) {
 		case 'p':
 			progress = true;
+			break;
+		case 'c':
+			csv_file = optarg;
 			break;
 		case 'h':
 		default:
@@ -488,10 +494,15 @@ int main(int argc, char *argv[])
 			break;
 		}
 	}
-		
 
 	if ((argc - optind) < 1 || (argc - optind) > 2)
 		usage(false);
+
+	if (csv_file) {
+		csv_fp = fopen(csv_file, "a");
+		if (csv_fp)
+			err(errno, "opening CSV file '%s'", csv_file);
+	}
 
 	act.sa_handler = wakeup;
 	sigemptyset(&act.sa_mask);
@@ -521,6 +532,13 @@ int main(int argc, char *argv[])
 		result = b->server(b);
 		if (progress)
 			printf("\n");
+
+		if (csv_fp) {
+			if (b == __start_benchmarks)
+				fprintf(csv_fp, ", ");
+			fprintf(csv_fp, "%Lu", result);
+		}
+
 		printf(b->format, (unsigned int)result);
 		printf("\n");
 		done = true;
@@ -528,6 +546,12 @@ int main(int argc, char *argv[])
 
 	if (!done)
 		usage(true);
+
+	if (csv_fp) {
+		fprintf(csv_fp, "\n");
+		fclose(csv_fp);
+	}
+
 	return 0;
 }
 
