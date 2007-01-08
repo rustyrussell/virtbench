@@ -1,5 +1,8 @@
 ~$
 .o$
-virtbench
-virtclient
-
+.orig$
+^virtbench$
+^virtclient$
+^rootfs/virtbench-root$
+^rootfs/virtbench-root-\d+$
+^results
