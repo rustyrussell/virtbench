@@ -22,7 +22,7 @@ static void do_bandwidth_bench(int fd, u32 runs,
 {
 	/* We're going to send TCP packets to that addr. */
 	struct sockaddr_in saddr;
-	int sock, ret, done = 0;
+	int sock, ret;
 	const struct pair_opt *opt = opts;
 	char *mem = malloc(BANDWIDTH_SIZE);
 
@@ -69,6 +69,7 @@ static void do_bandwidth_bench(int fd, u32 runs,
 	if (wait_for_start(fd)) {
 		u32 i;
 		for (i = 0; i < runs; i++) {
+			int done = 0;
 			if (opt->start) {
 				while ((ret = write(sock, mem+done,
 						    BANDWIDTH_SIZE-done)) > 0){

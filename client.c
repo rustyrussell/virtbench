@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
 	saddr.sin_family = AF_INET;
 	saddr.sin_port = htons(atoi(argv[3]));
-	saddr.sin_addr.s_addr = htonl(dotted_to_addr(argv[2]));
+	saddr.sin_addr.s_addr = dotted_to_addr(argv[2]);
 
 	if (connect(sock, (struct sockaddr *)&saddr, sizeof(saddr)) != 0)
 		err(1, "connecting to server");

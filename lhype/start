@@ -6,3 +6,5 @@ set -e
 
 rm -f $LOGFILES*
 rm -f $SHARENET_FILE
+
+[ -f /proc/lhype ] || modprobe lhype
