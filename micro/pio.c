@@ -1,6 +1,8 @@
 #include <sys/io.h>
 #include <errno.h>
 #include <err.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include "../benchmarks.h"
 
 static void do_pio(int fd, u32 runs,
@@ -20,6 +22,15 @@ static void do_pio(int fd, u32 runs,
 	}
 }
 
+static const char *pio_should_not_run(const char *virtdir, struct benchmark *b)
+{
+	if (streq(virtdir, "lhype"))
+		return "not valid for lhype";
+	if (geteuid() != 0)
+		return "can only be run as root";
+	return NULL;
+}
+
 struct benchmark pio_wait_benchmark _benchmark_
 = { "pio", "Time for one outb PIO operation: %u nsec",
-    do_single_bench, do_pio };
+    do_single_bench, do_pio, pio_should_not_run };

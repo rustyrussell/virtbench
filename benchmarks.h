@@ -10,6 +10,9 @@ struct benchmark
 	u64 (*server)(struct benchmark *bench);
 	void (*client)(int fd, u32 runs,
 		       struct benchmark *bench, const void *opts);
+	/* If we shouldn't run, return reason. */
+	const char *(*should_not_run)(const char *platform,
+				      struct benchmark *bench);
 };
 
 struct pair_opt

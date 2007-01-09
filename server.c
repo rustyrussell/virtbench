@@ -25,7 +25,7 @@
 static void __attribute__((noreturn)) usage(int exitstatus)
 {
 	struct benchmark *b;
-	fprintf(stderr, "Usage: virtbench [--progress] <virt-type> [benchmark]\n");
+	fprintf(stderr, "Usage: virtbench [--progress][--cvs=<file>] <virt-type> [benchmark]\n");
 
 	printf("Benchmarks are:\n");
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++)
@@ -555,10 +555,18 @@ int main(int argc, char *argv[])
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
 		u64 result;
+		const char *reason;
 		if (!benchmark_listed(b->name, argv+optind+1))
 			continue;
+		done = true;
+
+		if (b->should_not_run
+		    && (reason = b->should_not_run(virtdir, b)) != NULL) {
+			printf("DISABLED %s: %s\n", b->name, reason);
+			continue;
+		}
 		if (progress) {
-			printf("Running benchmark '%s'...", b->name);
+			printf("Running benchmark %s", b->name);
 			fflush(stdout);
 		}
 		result = b->server(b);
@@ -573,7 +581,6 @@ int main(int argc, char *argv[])
 
 		printf(b->format, (unsigned int)result);
 		printf("\n");
-		done = true;
 	}
 
 	if (!done)
