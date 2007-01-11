@@ -9,15 +9,17 @@ static void do_syscall_bench(int fd, u32 runs,
 
 	if (wait_for_start(fd)) {
 		u32 i;
-		u32 dummy;
+		u32 dummy = 1;
+
 		for (i = 0; i < runs; i++)
-			asm volatile("int $0x80"
-				     : "=a"(dummy) : "a"(__NR_getppid));
-		send_ack(fd);
+			dummy += getppid();
+		/* Avoids GCC optimizing it away, but it won't be true. */
+		if (dummy)
+			send_ack(fd);
 	}
 }
 
-struct benchmark syscall_benchmark _benchmark_
-= { "syscall", "Time for one syscall: %u nsec",
+struct benchmark libc_syscall_benchmark _benchmark_
+= { "libc-syscall", "Time for one syscall via libc: %u nsec",
     do_single_bench, do_syscall_bench };
 

@@ -17,8 +17,9 @@ distclean: clean
 virtbench: $(SERVERCFILES) Makefile $(wildcard *.h)
 	$(CC) $(CFLAGS) -o $@ $(SERVERCFILES)
 
+# Can't build static, because then libc won't use sysenter 8(
 virtclient: $(CLIENTCFILES) Makefile $(wildcard *.h)
-	$(CC) $(CFLAGS) -static -o $@ $(CLIENTCFILES)
+	$(CC) $(CFLAGS) -o $@ $(CLIENTCFILES)
 
 $(BASE_ROOTFS): Makefile $(BASE_ROOTFS).tmp
 	@mv $(BASE_ROOTFS).tmp $(BASE_ROOTFS)
@@ -32,7 +33,7 @@ $(BASE_ROOTFS).tmp:
 	# /dev/xvda needed for xen
 	set -e; sudo mount -text2 -o,loop,rw $@ /mnt;	\
 	 trap 'sudo umount /mnt' 0;			\
-	 sudo mkdir /mnt/tmp /mnt/dev;			\
+	 sudo mkdir /mnt/lib /mnt/tmp /mnt/dev;		\
 	 sudo mknod /mnt/dev/null    c   1 3;		\
 	 sudo mknod /mnt/dev/zero    c   1 5;		\
 	 sudo mknod /mnt/dev/console c   5 1;		\
@@ -44,4 +45,7 @@ $(ROOTFS): $(BASE_ROOTFS) virtclient
 	[ $(BASE_ROOTFS) -ot $@ ] || cp $(BASE_ROOTFS) $@
 	set -e; trap 'sudo umount /mnt' 0; \
 	 sudo mount -text2 -o,loop,rw $@ /mnt;	\
-	 sudo cp virtclient /mnt
+	 sudo cp virtclient /mnt; \
+	 sudo cp /lib/ld-linux* /mnt/lib; \
+	 sudo cp /lib/libc* /mnt/lib; \
+	 sudo cp -a /lib/tls /mnt/lib/tls

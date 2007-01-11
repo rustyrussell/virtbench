@@ -2,6 +2,6 @@
 ROOT_FILE=$(pwd -P)"/rootfs/virtbench-root"
 #ROOT_DEVICE=/dev/hdb1
 SHARENET_FILE=/tmp/virtbench-lhype-net
-LHYPE_ADD=/home/rusty/linux-2.6.19/drivers/lhype/lhype_add
+LHYPE_ADD=/home/rusty/linux-2.6.20-rc4/drivers/lhype/lhype_add
 LOGFILES=/tmp/virtbench.lhype.log
-KERNEL=/home/rusty/linux-2.6.19/vmlinux
+KERNEL=/home/rusty/linux-2.6.20-rc4/vmlinux
