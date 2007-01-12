@@ -1,4 +1,4 @@
 #! /bin/sh
 
-. lhype/SETTINGS
+. lguest/SETTINGS
 exit 0

@@ -1,6 +1,6 @@
 #! /bin/sh
 
-. lhype/SETTINGS
+. lguest/SETTINGS
 
 if [ -b "$ROOT_DEVICE" ]; then
     mount $ROOT_DEVICE /mnt
@@ -15,7 +15,7 @@ rm -f /mnt/tmp/*
 umount /mnt
 
 # Redirect everything so this doesn't hold socket open.
-$LHYPE_ADD 512m $1 $KERNEL --block=$BLOCK --tunnet=192.168.12.$(($1+1)) --sharenet=$SHARENET_FILE root=/dev/lhba rw debug init=/virtclient $1 `echo $2 | tr . /` $3 eth0 192/168/19/$(($1+1)) eth1 > $LOGFILES-$1 2>&1 < /dev/null &
+$LGUEST 512m $1 $KERNEL --block=$BLOCK --tunnet=192.168.12.$(($1+1)) --sharenet=$SHARENET_FILE root=/dev/lgba rw debug init=/virtclient $1 `echo $2 | tr . /` $3 eth0 192/168/19/$(($1+1)) eth1 > $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
 sleep 1
 route add -host 192.168.19.$(($1+1)) dev tap$1
