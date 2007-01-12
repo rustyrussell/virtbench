@@ -12,7 +12,7 @@
 
 #define TESTFILE "/tmp/virtbench-read-bandwidth.test"
 
-#define READ_SIZE (16 kB)
+#define READ_SIZE (256 kB)
 static const char fmtstr[] = "Time to read from disk " __stringify(READ_SIZE) ": %u nsec";
 #define kB * 1024
 
