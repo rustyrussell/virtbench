@@ -6,8 +6,8 @@ COMPARE=`mktemp`
 
 FILE_ONE="LOCAL.RESULTS"
 DESC_ONE="local"
-FILE_TWO="LHYPE.RESULTS"
-DESC_TWO="lhype"
+FILE_TWO="LGUEST.RESULTS"
+DESC_TWO="lguest"
 
 while [ -n "${1}" ] ; do
 	case "$1" in

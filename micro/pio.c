@@ -24,8 +24,8 @@ static void do_pio(int fd, u32 runs,
 
 static const char *pio_should_not_run(const char *virtdir, struct benchmark *b)
 {
-	if (streq(virtdir, "lhype"))
-		return "not valid for lhype";
+	if (streq(virtdir, "lguest"))
+		return "not valid for lguest";
 	if (geteuid() != 0)
 		return "can only be run as root";
 	return NULL;
