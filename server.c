@@ -392,13 +392,14 @@ u64 do_single_bench(struct benchmark *bench)
 			runs = 1;
 		else if (slot == -1)
 			return (average(times) - best) / runs;
-		else if (runs == 1) {
+		else {
+			u64 avg = (average(times) - best) / runs;
+
 			/* Jump to approx how many we'd need... */
 			do {
 				runs <<= 1;
-			} while (runs * (average(times) - best) < 128 * best);
-		} else
-			runs <<= 1;
+			} while (runs * avg < 256 * best);
+		}
 	}
 	assert(0);
 }
@@ -469,12 +470,14 @@ u64 do_pair_bench(struct benchmark *bench)
 			runs = 1;
 		else if (slot == -1)
 			return (average(times) - best) / runs;
-		else if (runs == 1) {
+		else {
+			u64 avg = (average(times) - best) / runs;
+
 			/* Jump to approx how many we'd need... */
-			while (runs * (average(times) - best) < 128 * best)
+			do {
 				runs <<= 1;
-		} else
-			runs <<= 1;
+			} while (runs * avg < 256 * best);
+		}
 	}
 	assert(0);
 }
