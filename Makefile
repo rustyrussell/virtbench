@@ -33,7 +33,7 @@ $(BASE_ROOTFS).tmp:
 	# /dev/xvda needed for xen
 	set -e; sudo mount -text2 -o,loop,rw $@ /mnt;	\
 	 trap 'sudo umount /mnt' 0;			\
-	 sudo mkdir /mnt/lib /mnt/tmp /mnt/dev;		\
+	 sudo mkdir /mnt/lib /mnt/tmp /mnt/dev /mnt/proc; \
 	 sudo mknod /mnt/dev/null    c   1 3;		\
 	 sudo mknod /mnt/dev/zero    c   1 5;		\
 	 sudo mknod /mnt/dev/console c   5 1;		\

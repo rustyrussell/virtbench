@@ -25,7 +25,7 @@
 static void __attribute__((noreturn)) usage(int exitstatus)
 {
 	struct benchmark *b;
-	fprintf(stderr, "Usage: virtbench [--progress][--cvs=<file>] <virt-type> [benchmark]\n");
+	fprintf(stderr, "Usage: virtbench [--profile][--progress][--cvs=<file>] <virt-type> [benchmark]\n");
 
 	printf("Benchmarks are:\n");
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++)
@@ -35,7 +35,7 @@ static void __attribute__((noreturn)) usage(int exitstatus)
 
 static const char *virtdir;
 static int sockets[NUM_MACHINES] = { [0 ... NUM_MACHINES-1] = -1 };
-static bool progress = false;
+static bool progress = false, profile = false;
 
 static void start_timeout_timer(unsigned int msecs)
 {
@@ -324,7 +324,8 @@ static void pick_outliers(const u64 times[MAX_RESULTS],
 
 		/* More than 10% == outlier. */
 		outliers[i] = (diff * 10 > times[best]);
-		if (progress && outliers[i]) printf("!");
+		if (progress && outliers[i])
+			printf("%c", times[i] > times[best] ? '>' : '<');
 	}
 }
 
@@ -354,6 +355,16 @@ static u64 average(u64 times[MAX_RESULTS])
 	return total / MAX_RESULTS;
 }
 
+static void reset_profile(void)
+{
+	system("readprofile -r");
+}
+
+static void dump_profile(void)
+{
+	system("readprofile");
+}
+
 u64 do_single_bench(struct benchmark *bench)
 {
 	int slot;
@@ -367,6 +378,8 @@ u64 do_single_bench(struct benchmark *bench)
 		slot = -1;
 		if (progress)
 			printf("%llu runs:", runs);
+		if (profile)
+			reset_profile();
 		while ((slot = next_place(slot, times, outliers)) != -1) {
 			struct timeval start;
 			setup_bench(client[0], bench->name, "", 0, runs);
@@ -390,9 +403,11 @@ u64 do_single_bench(struct benchmark *bench)
 
 		if (!runs)
 			runs = 1;
-		else if (slot == -1)
+		else if (slot == -1) {
+			if (profile)
+				dump_profile();
 			return (average(times) - best) / runs;
-		else {
+		} else {
 			u64 avg = (average(times) - best) / runs;
 
 			/* Jump to approx how many we'd need... */
@@ -433,6 +448,8 @@ u64 do_pair_bench(struct benchmark *bench)
 		memset(outliers, 0xFF, sizeof(outliers));
 		if (progress)
 			printf("%llu runs:", runs);
+		if (profile)
+			reset_profile();
 		while ((slot = next_place(slot, times, outliers)) != -1) {
 			struct timeval start;
 			struct pair_opt opt;
@@ -468,9 +485,11 @@ u64 do_pair_bench(struct benchmark *bench)
 		}
 		if (!runs)
 			runs = 1;
-		else if (slot == -1)
+		else if (slot == -1) {
+			if (profile)
+				dump_profile();
 			return (average(times) - best) / runs;
-		else {
+		} else {
 			u64 avg = (average(times) - best) / runs;
 
 			/* Jump to approx how many we'd need... */
@@ -505,6 +524,7 @@ int main(int argc, char *argv[])
 	bool done = false;
 	struct option lopts[] = {
 		{ "progress", 0, 0, 'p' },
+		{ "profile", 0, 0, 'P' },
 		{ "csv", 1, 0, 'c' },
 		{ "help", 0, 0, 'h' },
 		{ 0 },
@@ -518,6 +538,9 @@ int main(int argc, char *argv[])
 		switch (ch) {
 		case 'p':
 			progress = true;
+			break;
+		case 'P':
+			profile = true;
 			break;
 		case 'c':
 			csv_file = optarg;
