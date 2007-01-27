@@ -400,10 +400,10 @@ u64 do_single_bench(struct benchmark *bench)
 				best = times[slot];
 
 			/* If we do MAX_RESULTS and average is less
-			 * than 256 times the best result, we need to
+			 * than 100 times the best result, we need to
 			 * increase number of runs. */
 			if (slot == MAX_RESULTS-1
-			    && average(times) < best * 256)
+			    && average(times) < best * 100)
 				break;
 		}
 
@@ -419,7 +419,7 @@ u64 do_single_bench(struct benchmark *bench)
 			/* Jump to approx how many we'd need... */
 			do {
 				runs <<= 1;
-			} while (runs * avg < 256 * best);
+			} while (runs * avg < 100 * best);
 		}
 	}
 	assert(0);
@@ -483,10 +483,10 @@ static u64 some_pair_bench(struct benchmark *bench, bool onestop)
 				best = times[slot];
 
 			/* If we do MAX_RESULTS and average is less
-			 * than 256 times the best result, we need to
+			 * than 100 times the best result, we need to
 			 * increase number of runs. */
 			if (slot == MAX_RESULTS-1
-			    && average(times) < best * 256)
+			    && average(times) < best * 100)
 				break;
 		}
 		if (!runs)
@@ -501,7 +501,7 @@ static u64 some_pair_bench(struct benchmark *bench, bool onestop)
 			/* Jump to approx how many we'd need... */
 			do {
 				runs <<= 1;
-			} while (runs * avg < 256 * best);
+			} while (runs * avg < 100 * best);
 		}
 	}
 	assert(0);
