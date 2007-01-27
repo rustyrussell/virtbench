@@ -305,7 +305,13 @@ static void pick_outliers(const u64 times[MAX_RESULTS],
 	for (i = 0; i < MAX_RESULTS; i++) {
 		unsigned int j, neighbours = 0;
 		for (j = 0; j < MAX_RESULTS; j++) {
-			if (abs(times[i] - times[j]) * 10 < times[i])
+			u64 diff;
+			if (times[j] > times[i])
+				diff = times[j] - times[i];
+			else
+				/* Favour discarding high ones. */
+				diff = (times[i] - times[j]) * 2;
+			if (diff * 10 <= times[i])
 				neighbours++;
 		}
 		if (neighbours > best_neighbours) {
@@ -430,7 +436,7 @@ static u32 getip(int client)
 	return ntohl(saddr.sin_addr.s_addr);
 }
 
-u64 do_pair_bench(struct benchmark *bench)
+static u64 some_pair_bench(struct benchmark *bench, bool onestop)
 {
 	int slot;
 	u64 runs = 0, best = -1ULL;
@@ -468,7 +474,7 @@ u64 do_pair_bench(struct benchmark *bench)
 			start_timer(&start);
 			send_start_to_client(clients[0]);
 			send_start_to_client(clients[1]);
-			times[slot] = end_test(&start, clients, 2);
+			times[slot] = end_test(&start, clients, onestop ? 1 : 2);
 			if (progress) {
 				printf(".");
 				fflush(stdout);
@@ -499,6 +505,16 @@ u64 do_pair_bench(struct benchmark *bench)
 		}
 	}
 	assert(0);
+}
+
+u64 do_pair_bench(struct benchmark *bench)
+{
+	return some_pair_bench(bench, false);
+}
+
+u64 do_pair_bench_onestop(struct benchmark *bench)
+{
+	return some_pair_bench(bench, true);
 }
 
 static bool benchmark_listed(const char *bench, char *argv[])

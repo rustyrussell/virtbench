@@ -50,7 +50,10 @@ static void do_syscall_exec(int fd, u32 runs,
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
 			send_ack(fd);
 		else
-			errx(1, "child failed");
+			errx(1, "child failed %s %i",
+			     WIFEXITED(status) ? "exited" : "signalled",
+			     WIFEXITED(status)
+			     ? WEXITSTATUS(status) : WTERMSIG(status));
 	}
 }
 

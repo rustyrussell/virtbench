@@ -28,6 +28,7 @@ extern struct benchmark __start_benchmarks[], __stop_benchmarks[];
 /* Local (server) side helpers. */
 u64 do_single_bench(struct benchmark *bench);
 u64 do_pair_bench(struct benchmark *bench);
+u64 do_pair_bench_onestop(struct benchmark *bench);
 
 /* Remote (client) side helpers. */
 struct sockaddr;

@@ -202,3 +202,9 @@ u64 do_pair_bench(struct benchmark *bench)
 	assert(0);
 	return 0;
 }
+
+u64 do_pair_bench_onestop(struct benchmark *bench)
+{
+	assert(0);
+	return 0;
+}
