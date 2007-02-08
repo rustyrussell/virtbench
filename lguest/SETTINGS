@@ -1,5 +1,5 @@
 # Sourced from all the scripts
 SHARENET_FILE=/tmp/virtbench-lguest-net
-LGUEST=/home/rusty/linux-2.6.20-rc4/drivers/lguest/lguest
+LGUEST=/home/rusty/linux-2.6.20/drivers/lguest/lguest
 LOGFILES=/tmp/virtbench.lguest.log
-KERNEL=/home/rusty/linux-2.6.20-rc4/vmlinux
+KERNEL=/home/rusty/linux-2.6.20/vmlinux
