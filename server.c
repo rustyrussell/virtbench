@@ -219,18 +219,17 @@ static int stop(char *unused)
 	return 0;
 }
 
-static struct sockaddr_in get_server_addr(int sock)
+static struct sockaddr_in get_server_addr(int sock, const char *ifname)
 {
 	struct ifreq ifr;
 	struct sockaddr_in *sin = (struct sockaddr_in *)&ifr.ifr_addr;
 	struct sockaddr_in saddr;
 	socklen_t socklen = sizeof(saddr);
 
-	/* This assumes we have an eth0. */
-	strcpy(ifr.ifr_name, "eth0");
+	strcpy(ifr.ifr_name, ifname);
 	sin->sin_family = AF_INET;
 	if (ioctl(sock, SIOCGIFADDR, &ifr) != 0)
-		err(1, "Getting interface address for eth0");
+		err(1, "Getting interface address for %s", ifname);
 
 	if (getsockname(sock, (struct sockaddr *)&saddr, &socklen) != 0)
 		err(1, "getting socket name");
@@ -238,13 +237,13 @@ static struct sockaddr_in get_server_addr(int sock)
 	return saddr;
 }
 
-static char **bringup_machines(int sock)
+static char **bringup_machines(int sock, const char *ifname)
 {
 	unsigned int i, done;
 	char **names;
 	char *startcmd;
 	struct sockaddr_in addr;
-
+	
 	startcmd = talloc_asprintf(NULL, "%s/start", virtdir);
 	do_command(startcmd);
 	(void)talloc_steal(talloc_autofree_context(), startcmd);
@@ -252,7 +251,7 @@ static char **bringup_machines(int sock)
 
 	names = talloc_array(talloc_autofree_context(), char *, NUM_MACHINES);
 
-	addr = get_server_addr(sock);
+	addr = get_server_addr(sock, ifname);
 
 	printf("Bringing up machines"); fflush(stdout);
 	for (i = 0; i < NUM_MACHINES; i++) {
@@ -538,11 +537,13 @@ int main(int argc, char *argv[])
 	struct sigaction act;
 	int sock;
 	bool done = false;
+	const char *ifname = "eth0";
 	struct option lopts[] = {
 		{ "progress", 0, 0, 'p' },
 		{ "profile", 0, 0, 'P' },
 		{ "csv", 1, 0, 'c' },
 		{ "help", 0, 0, 'h' },
+		{ "ifname", 1, 0, 'i' },
 		{ 0 },
 	};
 	const char *sopts = "phc:";
@@ -563,6 +564,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'h':
 			usage(0);
+		case 'i':
+			ifname = optarg;
+			break;
 		default:
 			usage(1);
 			break;
@@ -593,7 +597,7 @@ int main(int argc, char *argv[])
 	if (listen(sock, 0) != 0)
 		err(1, "listening on socket");
 
-	names = bringup_machines(sock);
+	names = bringup_machines(sock, ifname);
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
 		u64 result;
