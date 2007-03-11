@@ -20,7 +20,7 @@ static void illegal_instruction(int sig)
 static int vmmcall(unsigned int cmd)
 {
 	signal(SIGILL, illegal_instruction);
-	asm volatile(".byte 0x0F,0x01,0xD9,0xC3\n" ::"a"(cmd));
+	asm volatile(".byte 0x0F,0x01,0xD9\n" ::"a"(cmd));
 	signal(SIGILL, SIG_DFL);
 
 	return 0;
@@ -29,7 +29,7 @@ static int vmmcall(unsigned int cmd)
 static int vmcall(unsigned int cmd)
 {
 	signal(SIGILL, illegal_instruction);
-	asm volatile(".byte 0x0F,0x01,0xC1,0xC3\n" ::"a"(cmd));
+	asm volatile(".byte 0x0F,0x01,0xC1\n" ::"a"(cmd));
 	signal(SIGILL, SIG_DFL);
 
 	return 0;
