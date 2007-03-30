@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <err.h>
+#include <stdio.h>
 #include "../benchmarks.h"
 
 #define PACKETS 1000
