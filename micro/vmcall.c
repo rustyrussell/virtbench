@@ -14,7 +14,7 @@ static sig_atomic_t bad_instruction;
 static void illegal_instruction(int sig)
 {
 	bad_instruction = 1;
-	exit(1);
+	_exit(1);
 }
 
 static int vmmcall(unsigned int cmd)
@@ -85,7 +85,7 @@ static const char *vmcall_should_not_run(const char *virtdir, struct benchmark *
 		if (try_vmcall(1))
 			return "not a VT guest";
 	} else {
-		if (try_vmcall(1))
+		if (try_vmcall(0))
 			return "not an SVM guest";
 	}
 	return NULL;

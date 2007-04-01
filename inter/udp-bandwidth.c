@@ -98,8 +98,6 @@ static void do_udp_bandwidth_bench(int fd, u32 runs,
 						break;
 				}
 			}
-			printf("Sent %i extra packets run %i\n",
-			       i - runs * PACKETS, runs);
 			write(sock, "1", 1);
 		}
 	}
