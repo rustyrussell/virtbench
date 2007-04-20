@@ -74,6 +74,6 @@ static void do_pingpong_bench(int fd, u32 runs,
 }
 
 struct benchmark pingpong_benchmark _benchmark_
-= { "pingpong", "Time for inter-guest pingpong: %u nsec",
+= { "pingpong", "Time for inter-guest pingpong",
     do_pair_bench, do_pingpong_bench };
 

@@ -92,9 +92,9 @@ static const char *vmcall_should_not_run(const char *virtdir, struct benchmark *
 }
 
 struct benchmark vmcall_wait_benchmark _benchmark_
-= { "vmcall", "Time for one VMCALL (VT) instruction: %u nsec",
+= { "vmcall", "Time for one VMCALL (VT) instruction",
     do_single_bench, do_vmcall, vmcall_should_not_run };
 
 struct benchmark vmmcall_wait_benchmark _benchmark_
-= { "vmmcall", "Time for one VMMCALL (SVM) instruction: %u nsec",
+= { "vmmcall", "Time for one VMMCALL (SVM) instruction",
     do_single_bench, do_vmcall, vmcall_should_not_run };

@@ -60,5 +60,5 @@ static void do_read_latency(int fd, u32 runs,
 }
 
 struct benchmark read_latency_benchmark _benchmark_
-= { "read-latency", "Time for one disk read: %u nsec",
+= { "read-latency", "Time for one disk read",
     do_single_bench, do_read_latency };

@@ -7,8 +7,8 @@
 #include "../benchmarks.h"
 
 #define BANDWIDTH_SIZE 4 MB
-static const char fmtstr[] 
-= "Time to send " __stringify(BANDWIDTH_SIZE) " between guests: %u nsec";
+static const char pretty_name[] 
+= "Time to send " __stringify(BANDWIDTH_SIZE) " between guests";
 #define MB * 1024 * 1024
 
 #define HIPQUAD(ip)				\
@@ -97,5 +97,5 @@ static void do_bandwidth_bench(int fd, u32 runs,
 }
 
 static struct benchmark bandwidth_benchmark _benchmark_
-= { "bandwidth", fmtstr, do_pair_bench, do_bandwidth_bench };
+= { "bandwidth", pretty_name, do_pair_bench, do_bandwidth_bench };
 

@@ -32,5 +32,5 @@ static const char *pio_should_not_run(const char *virtdir, struct benchmark *b)
 }
 
 struct benchmark pio_wait_benchmark _benchmark_
-= { "pio", "Time for one outb PIO operation: %u nsec",
+= { "pio", "Time for one outb PIO operation",
     do_single_bench, do_pio, pio_should_not_run };

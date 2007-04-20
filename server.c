@@ -25,7 +25,7 @@
 static void __attribute__((noreturn)) usage(int exitstatus)
 {
 	struct benchmark *b;
-	fprintf(stderr, "Usage: virtbench [--profile][--progress][--cvs=<file>] <virt-type> [benchmark]\n");
+	fprintf(stderr, "Usage: virtbench [--ifname=<interface>][--profile][--progress][--cvs=<file>] <virt-type> [benchmark]\n");
 
 	printf("Benchmarks are:\n");
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++)
@@ -52,6 +52,7 @@ static void stop_timeout_timer(void)
 	int olderr = errno;
 
 	ival.it_value.tv_sec = ival.it_value.tv_usec = 0;
+	ival.it_interval.tv_sec = ival.it_interval.tv_usec = 0;
 	setitimer(ITIMER_REAL, &ival, NULL);
 
 	errno = olderr;
@@ -273,7 +274,8 @@ static char **bringup_machines(int sock, const char *ifname)
 		if (streq(names[i], ""))
 			errx(1, "'%s' did not give a name", cmd);
 		talloc_set_destructor(names[i], destroy_machine);
-		talloc_reference(names[i], startcmd);
+		/* Damn spurious gcc warnings. */
+		(void)talloc_reference(names[i], startcmd);
 	}
 
 	for (done = 0; done < NUM_MACHINES; done++) {
@@ -294,72 +296,6 @@ static char **bringup_machines(int sock, const char *ifname)
 	return names;
 }
 
-#define MAX_RESULTS 64
-static void pick_outliers(const u64 times[MAX_RESULTS],
-			  bool outliers[MAX_RESULTS])
-{
-	unsigned int best_neighbours = 0, best = 0;
-	unsigned int i;
-
-	for (i = 0; i < MAX_RESULTS; i++) {
-		unsigned int j, neighbours = 0;
-		for (j = 0; j < MAX_RESULTS; j++) {
-			u64 diff;
-			if (times[j] > times[i])
-				diff = times[j] - times[i];
-			else
-				/* Favour discarding high ones. */
-				diff = (times[i] - times[j]) * 2;
-			if (diff * 10 <= times[i])
-				neighbours++;
-		}
-		if (neighbours > best_neighbours) {
-			best_neighbours = neighbours;
-			best = i;
-		}
-	}
-
-	for (i = 0; i < MAX_RESULTS; i++) {
-		u64 diff;
-		if (times[best] > times[i])
-			diff = times[best] - times[i];
-		else
-			/* Favour discarding high ones. */
-			diff = (times[i] - times[best]) * 2;
-
-		/* More than 10% == outlier. */
-		outliers[i] = (diff * 10 > times[best]);
-		if (progress && outliers[i])
-			printf("%c", times[i] > times[best] ? '>' : '<');
-	}
-}
-
-/* Try to get a stable result. */
-static int next_place(int prev,
-		      const u64 times[MAX_RESULTS],
-		      bool outliers[MAX_RESULTS])
-
-{
-	if (prev == MAX_RESULTS-1) {
-		pick_outliers(times, outliers);
-		prev = -1;
-	}
-	for (prev++; prev < MAX_RESULTS; prev++)
-		if (outliers[prev])
-			return prev;
-	return -1;
-}
-
-static u64 average(u64 times[MAX_RESULTS])
-{
-	u64 i, total = 0;
-
-	for (i = 0; i < MAX_RESULTS; i++)
-		total += times[i];
-
-	return total / MAX_RESULTS;
-}
-
 static void reset_profile(void)
 {
 	system("readprofile -r");
@@ -370,58 +306,33 @@ static void dump_profile(void)
 	system("readprofile");
 }
 
-u64 do_single_bench(struct benchmark *bench)
+struct results *do_single_bench(struct benchmark *bench, bool rough)
 {
-	int slot;
-	u64 runs = 0, best = -1ULL;
-	u64 times[MAX_RESULTS];
+	unsigned int runs = 0, prev_runs = 1;
+	struct results *r = new_results();
 	int client[1] = { random() % NUM_MACHINES };
-	bool outliers[MAX_RESULTS];
 
-	for (;;) {
-		memset(outliers, 0xFF, sizeof(outliers));
-		slot = -1;
-		if (progress)
-			printf("%llu runs:", runs);
-		if (profile)
-			reset_profile();
-		while ((slot = next_place(slot, times, outliers)) != -1) {
-			struct timeval start;
-			setup_bench(client[0], bench->name, "", 0, runs);
-			start_timer(&start);
-			send_start_to_client(client[0]);
-			times[slot] = end_test(&start, client, 1);
-			if (progress) {
-				printf(".");
-				fflush(stdout);
-			}
-			if (times[slot] < best)
-				best = times[slot];
-
-			/* If we do MAX_RESULTS and average is less
-			 * than 100 times the best result, we need to
-			 * increase number of runs. */
-			if (slot == MAX_RESULTS-1
-			    && average(times) < best * 100)
-				break;
-		}
-
-		if (!runs)
-			runs = 1;
-		else if (slot == -1) {
+	do {
+		struct timeval start;
+		if (runs != prev_runs) {
+			if (progress)
+				printf("%u runs:", runs);
 			if (profile)
-				dump_profile();
-			return (average(times) - best) / runs;
-		} else {
-			u64 avg = (average(times) - best) / runs;
-
-			/* Jump to approx how many we'd need... */
-			do {
-				runs <<= 1;
-			} while (runs * avg < 100 * best);
+				reset_profile();
+			prev_runs = runs;
 		}
-	}
-	assert(0);
+		setup_bench(client[0], bench->name, "", 0, runs);
+		start_timer(&start);
+		send_start_to_client(client[0]);
+		add_result(r, end_test(&start, client, 1));
+		if (progress) {
+			printf(".");
+			fflush(stdout);
+		}
+	} while (!results_done(r, &runs, rough));
+	if (profile)
+		dump_profile();
+	return r;
 }
 
 static u32 getip(int client)
@@ -435,85 +346,59 @@ static u32 getip(int client)
 	return ntohl(saddr.sin_addr.s_addr);
 }
 
-static u64 some_pair_bench(struct benchmark *bench, bool onestop)
+static struct results *some_pair_bench(struct benchmark *bench,
+				       bool onestop, bool rough)
 {
-	int slot;
-	u64 runs = 0, best = -1ULL;
-	u64 times[MAX_RESULTS];
+	unsigned int runs = 0, prev_runs = 1;
+	struct results *r = new_results();
 	int clients[2];
-	bool outliers[MAX_RESULTS];
 
 	clients[0] = (random() % NUM_MACHINES);
 	do {
 		clients[1] = (random() % NUM_MACHINES);
 	} while (clients[1] == clients[0]);
 
-	for (;;) {
-		slot = -1;
-		memset(outliers, 0xFF, sizeof(outliers));
-		if (progress)
-			printf("%llu runs:", runs);
-		if (profile)
-			reset_profile();
-		while ((slot = next_place(slot, times, outliers)) != -1) {
-			struct timeval start;
-			struct pair_opt opt;
+	do {
+		struct timeval start;
+		struct pair_opt opt;
 
-			opt.yourip = getip(clients[0]);
-			opt.otherip = getip(clients[1]);
-			opt.start = 1;
-			setup_bench(clients[0], bench->name, &opt, sizeof(opt),
-				    runs);
-			opt.yourip = getip(clients[1]);
-			opt.otherip = getip(clients[0]);
-			opt.start = 0;
-			setup_bench(clients[1], bench->name, &opt, sizeof(opt),
-				    runs);
-
-			start_timer(&start);
-			send_start_to_client(clients[0]);
-			send_start_to_client(clients[1]);
-			times[slot] = end_test(&start, clients, onestop ? 1 : 2);
-			if (progress) {
-				printf(".");
-				fflush(stdout);
-			}
-			if (times[slot] < best)
-				best = times[slot];
-
-			/* If we do MAX_RESULTS and average is less
-			 * than 100 times the best result, we need to
-			 * increase number of runs. */
-			if (slot == MAX_RESULTS-1
-			    && average(times) < best * 100)
-				break;
-		}
-		if (!runs)
-			runs = 1;
-		else if (slot == -1) {
+		if (runs != prev_runs) {
+			if (progress)
+				printf("%u runs:", runs);
 			if (profile)
-				dump_profile();
-			return (average(times) - best) / runs;
-		} else {
-			u64 avg = (average(times) - best) / runs;
-
-			/* Jump to approx how many we'd need... */
-			do {
-				runs <<= 1;
-			} while (runs * avg < 100 * best);
+				reset_profile();
+			prev_runs = runs;
 		}
-	}
-	assert(0);
+
+		opt.yourip = getip(clients[0]);
+		opt.otherip = getip(clients[1]);
+		opt.start = 1;
+		setup_bench(clients[0], bench->name, &opt, sizeof(opt), runs);
+		opt.yourip = getip(clients[1]);
+		opt.otherip = getip(clients[0]);
+		opt.start = 0;
+		setup_bench(clients[1], bench->name, &opt, sizeof(opt), runs);
+
+		start_timer(&start);
+		send_start_to_client(clients[0]);
+		send_start_to_client(clients[1]);
+		add_result(r, end_test(&start, clients, onestop ? 1 : 2));
+		if (progress) {
+			printf(".");
+			fflush(stdout);
+		}
+	} while (!results_done(r, &runs, rough));
+	return r;
 }
 
-u64 do_pair_bench(struct benchmark *bench)
+struct results *do_pair_bench(struct benchmark *bench, bool rough)
 {
-	return some_pair_bench(bench, false);
+	return some_pair_bench(bench, false, rough);
 }
 
-u64 do_pair_bench_onestop(struct benchmark *bench)
+struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough)
 {
-	return some_pair_bench(bench, true);
+	return some_pair_bench(bench, true, rough);
 }
 
 static bool benchmark_listed(const char *bench, char *argv[])
@@ -536,7 +421,7 @@ int main(int argc, char *argv[])
 	char **names;
 	struct sigaction act;
 	int sock;
-	bool done = false;
+	bool done = false, rough = false;
 	const char *ifname = "eth0";
 	struct option lopts[] = {
 		{ "progress", 0, 0, 'p' },
@@ -544,12 +429,15 @@ int main(int argc, char *argv[])
 		{ "csv", 1, 0, 'c' },
 		{ "help", 0, 0, 'h' },
 		{ "ifname", 1, 0, 'i' },
+		{ "distribution", 0, 0, 'd' },
+		{ "rough", 0, 0, 'r' },
 		{ 0 },
 	};
 	const char *sopts = "phc:";
 	int ch, opt_ind;
 	const char *csv_file = 0;
 	FILE *csv_fp = NULL;
+	char *(*printer)(struct results *r) = results_to_quick_summary;
 
 	while ((ch = getopt_long(argc, argv, sopts, lopts, &opt_ind)) != -1) {
 		switch (ch) {
@@ -566,6 +454,12 @@ int main(int argc, char *argv[])
 			usage(0);
 		case 'i':
 			ifname = optarg;
+			break;
+		case 'd':
+			printer = results_to_dist_summary;
+			break;
+		case 'r':
+			rough = true;
 			break;
 		default:
 			usage(1);
@@ -600,7 +494,7 @@ int main(int argc, char *argv[])
 	names = bringup_machines(sock, ifname);
 
 	for (b = __start_benchmarks; b < __stop_benchmarks; b++) {
-		u64 result;
+		struct results *results;
 		const char *reason;
 		if (!benchmark_listed(b->name, argv+optind+1))
 			continue;
@@ -615,27 +509,21 @@ int main(int argc, char *argv[])
 			printf("Running benchmark %s", b->name);
 			fflush(stdout);
 		}
-		result = b->server(b);
+		results = b->server(b, rough);
 		if (progress)
 			printf("\n");
 
-		if (csv_fp) {
-			if (b != __start_benchmarks)
-				fprintf(csv_fp, ", ");
-			fprintf(csv_fp, "%Lu", result);
-		}
+		if (csv_fp)
+			fprintf(csv_fp, "%s\n", results_to_csv(results));
 
-		printf(b->format, (unsigned int)result);
-		printf("\n");
+		printf("%s: %s\n", b->pretty_name, printer(results));
 	}
 
 	if (!done)
 		usage(1);
 
-	if (csv_fp) {
-		fprintf(csv_fp, "\n");
+	if (csv_fp)
 		fclose(csv_fp);
-	}
 
 	return 0;
 }

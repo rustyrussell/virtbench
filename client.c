@@ -191,20 +191,20 @@ int main(int argc, char *argv[])
 }
 
 /* Dummy for compiling benchmarks. */
-u64 do_single_bench(struct benchmark *bench)
+struct results *do_single_bench(struct benchmark *bench, bool rough)
 {
 	assert(0);
-	return 0;
+	return NULL;
 }
 
-u64 do_pair_bench(struct benchmark *bench)
+struct results *do_pair_bench(struct benchmark *bench, bool rough)
 {
 	assert(0);
-	return 0;
+	return NULL;
 }
 
-u64 do_pair_bench_onestop(struct benchmark *bench)
+struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough)
 {
 	assert(0);
-	return 0;
+	return NULL;
 }

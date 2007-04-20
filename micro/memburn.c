@@ -7,10 +7,10 @@
 #include "../benchmarks.h"
 
 #define MEMBURN_SIZE 64 MB
-static const char fmtstr_linear[] 
-= "Time to walk linear " __stringify(MEMBURN_SIZE) ": %u nsec";
-static const char fmtstr_random[] 
-= "Time to walk random " __stringify(MEMBURN_SIZE) ": %u nsec";
+static const char pretty_name_linear[] 
+= "Time to walk linear " __stringify(MEMBURN_SIZE);
+static const char pretty_name_random[] 
+= "Time to walk random " __stringify(MEMBURN_SIZE);
 #define MB * 1024 * 1024
 
 static void *setup(void)
@@ -71,8 +71,8 @@ static void do_memburn_random(int fd, u32 runs,
 }
 
 struct benchmark memburn_linear _benchmark_
-= { "memburn-linear", fmtstr_linear, do_single_bench, do_memburn_linear };
+= { "memburn-linear", pretty_name_linear, do_single_bench, do_memburn_linear };
 
 struct benchmark memburn_random _benchmark_
-= { "memburn-random", fmtstr_random, do_single_bench, do_memburn_random };
+= { "memburn-random", pretty_name_random, do_single_bench, do_memburn_random };
 

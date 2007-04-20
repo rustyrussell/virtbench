@@ -42,6 +42,6 @@ static void do_cow(int fd, u32 runs, struct benchmark *bench, const void *opts)
 }
 
 struct benchmark cow_benchmark _benchmark_
-= { "cow", "Time for one Copy-on-Write fault: %u nsec",
+= { "cow", "Time for one Copy-on-Write fault",
     do_single_bench, do_cow };
 

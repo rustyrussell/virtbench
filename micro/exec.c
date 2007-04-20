@@ -58,6 +58,6 @@ static void do_syscall_exec(int fd, u32 runs,
 }
 
 struct benchmark exec_benchmark _benchmark_
-= { "exec", "Time to exec client once: %u nsec",
+= { "exec", "Time to exec client once",
     do_single_bench, do_syscall_exec };
 

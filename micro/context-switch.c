@@ -55,6 +55,6 @@ static void do_context_switch(int fd, u32 runs,
 }
 
 struct benchmark context_swtch_benchmark _benchmark_
-= { "context-switch", "Time for one context switch via pipe: %u nsec",
+= { "context-switch", "Time for one context switch via pipe",
     do_single_bench, do_context_switch };
 

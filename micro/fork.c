@@ -28,5 +28,5 @@ static void do_fork(int fd, u32 runs,
 }
 
 struct benchmark fork_wait_benchmark _benchmark_
-= { "fork", "Time for one fork/exit/wait: %u nsec",
+= { "fork", "Time for one fork/exit/wait",
     do_single_bench, do_fork };

@@ -13,7 +13,7 @@
 #define TESTFILE "/tmp/virtbench-read-bandwidth.test"
 
 #define READ_SIZE (256 kB)
-static const char fmtstr[] = "Time to read from disk " __stringify(READ_SIZE) ": %u nsec";
+static const char pretty_name[] = "Time to read from disk " __stringify(READ_SIZE);
 #define kB * 1024
 
 static void do_read_bandwidth(int fd, u32 runs,
@@ -68,4 +68,4 @@ static void do_read_bandwidth(int fd, u32 runs,
 }
 
 struct benchmark read_bandiwdth_benchmark _benchmark_
-= { "read-bandwidth", fmtstr, do_single_bench, do_read_bandwidth };
+= { "read-bandwidth", pretty_name, do_single_bench, do_read_bandwidth };

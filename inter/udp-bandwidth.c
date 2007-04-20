@@ -107,6 +107,6 @@ static void do_udp_bandwidth_bench(int fd, u32 runs,
 
 static struct benchmark bandwidth_benchmark _benchmark_
 = { "udp-bandwidth",
-    "Time to receive " __stringify(PACKETS) " 1k UDPs between guests: %u nsec",
+    "Time to receive " __stringify(PACKETS) " 1k UDPs between guests",
     do_pair_bench_onestop, do_udp_bandwidth_bench };
 

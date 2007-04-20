@@ -3,11 +3,12 @@
 #include <sys/socket.h>
 #include "stdrusty.h"
 
+struct results;
 struct benchmark
 {
 	const char *name;
-	const char *format;
-	u64 (*server)(struct benchmark *bench);
+	const char *pretty_name;
+	struct results *(*server)(struct benchmark *bench, bool rough);
 	void (*client)(int fd, u32 runs,
 		       struct benchmark *bench, const void *opts);
 	/* If we shouldn't run, return reason. */
@@ -22,13 +23,21 @@ struct pair_opt
 	u32 start;
 };
 
+struct results *new_results(void);
+void add_result(struct results *, u64 res);
+bool results_done(struct results *, unsigned int *runs, bool rough);
+/* Answers are attached to the "struct results", so needn't be freed */
+char *results_to_csv(struct results *);
+char *results_to_dist_summary(struct results *);
+char *results_to_quick_summary(struct results *);
+
 /* Linker magic defines these */
 extern struct benchmark __start_benchmarks[], __stop_benchmarks[];
 
 /* Local (server) side helpers. */
-u64 do_single_bench(struct benchmark *bench);
-u64 do_pair_bench(struct benchmark *bench);
-u64 do_pair_bench_onestop(struct benchmark *bench);
+struct results *do_single_bench(struct benchmark *bench, bool rough);
+struct results *do_pair_bench(struct benchmark *bench, bool rough);
+struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough);
 
 /* Remote (client) side helpers. */
 struct sockaddr;

@@ -20,6 +20,6 @@ static void do_syscall_bench(int fd, u32 runs,
 }
 
 struct benchmark libc_syscall_benchmark _benchmark_
-= { "libc-syscall", "Time for one syscall via libc: %u nsec",
+= { "libc-syscall", "Time for one syscall via libc",
     do_single_bench, do_syscall_bench };
 

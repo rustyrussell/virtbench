@@ -62,5 +62,4 @@ static void do_pte_update(int fd, u32 runs,
 }
 
 struct benchmark pte_update_wait_benchmark _benchmark_
-= { "pte-update", "Time for two PTE updates: %u nsec",
-    do_single_bench, do_pte_update };
+= { "pte-update", "Time for two PTE updates", do_single_bench, do_pte_update };
