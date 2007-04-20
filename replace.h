@@ -3,3 +3,5 @@
 #define HAVE_STDARG_H
 #define HAVE_STDINT_H
 #define HAVE_VA_COPY
+#include <string.h>
+#include <stdio.h>

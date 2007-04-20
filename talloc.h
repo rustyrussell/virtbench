@@ -5,6 +5,7 @@
    Samba temporary memory allocation functions
 
    Copyright (C) Andrew Tridgell 2004-2005
+   Copyright (C) Stefan Metzmacher 2006
    
      ** NOTE! The following LGPL license applies to the talloc
      ** library. This does NOT imply that all of Samba is released
@@ -25,16 +26,22 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+
 /* this is only needed for compatibility with the old talloc */
 typedef void TALLOC_CTX;
 
 /*
   this uses a little trick to allow __LINE__ to be stringified
 */
-#define _STRING_LINE_(s)    #s
-#define _STRING_LINE2_(s)   _STRING_LINE_(s)
-#define __LINESTR__       _STRING_LINE2_(__LINE__)
-#define __location__ __FILE__ ":" __LINESTR__
+#ifndef __location__
+#define __TALLOC_STRING_LINE1__(s)    #s
+#define __TALLOC_STRING_LINE2__(s)   __TALLOC_STRING_LINE1__(s)
+#define __TALLOC_STRING_LINE3__  __TALLOC_STRING_LINE2__(__LINE__)
+#define __location__ __FILE__ ":" __TALLOC_STRING_LINE3__
+#endif
 
 #ifndef TALLOC_DEPRECATED
 #define TALLOC_DEPRECATED 0
@@ -58,21 +65,26 @@ typedef void TALLOC_CTX;
 #define _TALLOC_TYPEOF(ptr) __typeof__(ptr)
 #define talloc_set_destructor(ptr, function)				      \
 	do {								      \
-		int (*_talloc_destructor_fn)(typeof(ptr)) = (function);	      \
-		_talloc_set_destructor((ptr), (void *)_talloc_destructor_fn); \
+		int (*_talloc_destructor_fn)(_TALLOC_TYPEOF(ptr)) = (function);	      \
+		_talloc_set_destructor((ptr), (int (*)(void *))_talloc_destructor_fn); \
 	} while(0)
-#define _TALLOC_CHECK_TYPE(type,val) 
-#define _TALLOC_IS_CONSTANT(ptr) __builtin_constant_p(ptr)
+/* this extremely strange macro is to avoid some braindamaged warning
+   stupidity in gcc 4.1.x */
+#define talloc_steal(ctx, ptr) ({ _TALLOC_TYPEOF(ptr) __talloc_steal_ret = (_TALLOC_TYPEOF(ptr))_talloc_steal((ctx),(ptr)); __talloc_steal_ret; })
 #else
 #define talloc_set_destructor(ptr, function) \
 	_talloc_set_destructor((ptr), (int (*)(void *))(function))
 #define _TALLOC_TYPEOF(ptr) void *
-#define _TALLOC_IS_CONSTANT(ptr) (0)
+#define talloc_steal(ctx, ptr) (_TALLOC_TYPEOF(ptr))_talloc_steal((ctx),(ptr))
 #endif
+
+#define talloc_reference(ctx, ptr) (_TALLOC_TYPEOF(ptr))_talloc_reference((ctx),(ptr))
+#define talloc_move(ctx, ptr) (_TALLOC_TYPEOF(*(ptr)))_talloc_move((ctx),(void *)(ptr))
 
 /* useful macros for creating type checked pointers */
 #define talloc(ctx, type) (type *)talloc_named_const(ctx, sizeof(type), #type)
 #define talloc_size(ctx, size) talloc_named_const(ctx, size, __location__)
+#define talloc_ptrtype(ctx, ptr) (_TALLOC_TYPEOF(ptr))talloc_size(ctx, sizeof(*(ptr)))
 
 #define talloc_new(ctx) talloc_named_const(ctx, 0, "talloc_new: " __location__)
 
@@ -82,20 +94,17 @@ typedef void TALLOC_CTX;
 #define talloc_zero_array(ctx, type, count) (type *)_talloc_zero_array(ctx, sizeof(type), count, #type)
 #define talloc_array(ctx, type, count) (type *)_talloc_array(ctx, sizeof(type), count, #type)
 #define talloc_array_size(ctx, size, count) _talloc_array(ctx, size, count, __location__)
+#define talloc_array_ptrtype(ctx, ptr, count) (_TALLOC_TYPEOF(ptr))talloc_array_size(ctx, sizeof(*(ptr)), count)
 
 #define talloc_realloc(ctx, p, type, count) (type *)_talloc_realloc_array(ctx, p, sizeof(type), count, #type)
 #define talloc_realloc_size(ctx, ptr, size) _talloc_realloc(ctx, ptr, size, __location__)
 
 #define talloc_memdup(t, p, size) _talloc_memdup(t, p, size, __location__)
 
-#define talloc_set_attr(ctx, attname, att) talloc_set_attr_size(ctx, attname, att, strlen(att)+1)
-#define talloc_set_attr_size(ctx, attname, att, len) _talloc_set_attr_size(ctx, attname, att, len, !_TALLOC_IS_CONSTANT(attname))
-
 #define talloc_set_type(ptr, type) talloc_set_name_const(ptr, #type)
 #define talloc_get_type(ptr, type) (type *)talloc_check_name(ptr, #type)
 
 #define talloc_find_parent_bytype(ptr, type) (type *)talloc_find_parent_byname(ptr, #type)
-#define talloc_steal(ctx, ptr) (_TALLOC_TYPEOF(ptr))_talloc_steal((ctx),(ptr))
 
 #if TALLOC_DEPRECATED
 #define talloc_zero_p(ctx, type) talloc_zero(ctx, type)
@@ -108,8 +117,9 @@ typedef void TALLOC_CTX;
 /* The following definitions come from talloc.c  */
 void *_talloc(const void *context, size_t size);
 void _talloc_set_destructor(const void *ptr, int (*destructor)(void *));
-void talloc_increase_ref_count(const void *ptr);
-void *talloc_reference(const void *context, const void *ptr);
+int talloc_increase_ref_count(const void *ptr);
+size_t talloc_reference_count(const void *ptr);
+void *_talloc_reference(const void *context, const void *ptr);
 int talloc_unlink(const void *context, void *ptr);
 const char *talloc_set_name(const void *ptr, const char *fmt, ...) PRINTF_ATTRIBUTE(2,3);
 void talloc_set_name_const(const void *ptr, const char *name);
@@ -117,22 +127,28 @@ void *talloc_named(const void *context, size_t size,
 		   const char *fmt, ...) PRINTF_ATTRIBUTE(3,4);
 void *talloc_named_const(const void *context, size_t size, const char *name);
 const char *talloc_get_name(const void *ptr);
-void *_talloc_set_attr_size(const void *ptr, const char *attname, const void *att, size_t len, int copyname);
-void *talloc_get_attr(const void *ctx, const char *attname);
-int talloc_del_attr(const void *ctx, const char *attname);
-
 void *talloc_check_name(const void *ptr, const char *name);
-void talloc_report_depth(const void *ptr, FILE *f, int depth);
 void *talloc_parent(const void *ptr);
+const char *talloc_parent_name(const void *ptr);
 void *talloc_init(const char *fmt, ...) PRINTF_ATTRIBUTE(1,2);
 int talloc_free(void *ptr);
+void talloc_free_children(void *ptr);
 void *_talloc_realloc(const void *context, void *ptr, size_t size, const char *name);
 void *_talloc_steal(const void *new_ctx, const void *ptr);
-off_t talloc_total_size(const void *ptr);
-off_t talloc_total_blocks(const void *ptr);
+void *_talloc_move(const void *new_ctx, const void *pptr);
+size_t talloc_total_size(const void *ptr);
+size_t talloc_total_blocks(const void *ptr);
+void talloc_report_depth_cb(const void *ptr, int depth, int max_depth,
+			    void (*callback)(const void *ptr,
+			  		     int depth, int max_depth,
+					     int is_ref,
+					     void *private_data),
+			    void *private_data);
+void talloc_report_depth_file(const void *ptr, int depth, int max_depth, FILE *f);
 void talloc_report_full(const void *ptr, FILE *f);
 void talloc_report(const void *ptr, FILE *f);
 void talloc_enable_null_tracking(void);
+void talloc_disable_null_tracking(void);
 void talloc_enable_leak_report(void);
 void talloc_enable_leak_report_full(void);
 void *_talloc_zero(const void *ctx, size_t size, const char *name);
@@ -143,8 +159,7 @@ char *talloc_append_string(const void *t, char *orig, const char *append);
 char *talloc_vasprintf(const void *t, const char *fmt, va_list ap) PRINTF_ATTRIBUTE(2,0);
 char *talloc_vasprintf_append(char *s, const char *fmt, va_list ap) PRINTF_ATTRIBUTE(2,0);
 char *talloc_asprintf(const void *t, const char *fmt, ...) PRINTF_ATTRIBUTE(2,3);
-char *talloc_asprintf_append(char *s,
-			     const char *fmt, ...) PRINTF_ATTRIBUTE(2,3);
+char *talloc_asprintf_append(char *s, const char *fmt, ...) PRINTF_ATTRIBUTE(2,3);
 void *_talloc_array(const void *ctx, size_t el_size, unsigned count, const char *name);
 void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name);
 void *_talloc_realloc_array(const void *ctx, void *ptr, size_t el_size, unsigned count, const char *name);
@@ -153,7 +168,7 @@ void *talloc_autofree_context(void);
 size_t talloc_get_size(const void *ctx);
 void *talloc_find_parent_byname(const void *ctx, const char *name);
 void talloc_show_parents(const void *context, FILE *file);
-int talloc_is_parent(const void *context, const char *ptr);
+int talloc_is_parent(const void *context, const void *ptr);
 
 #endif
 
