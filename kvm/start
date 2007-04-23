@@ -2,7 +2,7 @@
 
 set -e
 
-. kvm/SETTINGS
+. ./SETTINGS
 
 if grep -q AuthenticAMD /proc/cpuinfo; then
     module="kvm-amd"

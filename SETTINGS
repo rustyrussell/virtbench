@@ -1,0 +1,19 @@
+# Sourced from all scripts
+# Fail on error.
+set -e
+
+# Where your guest kernel lives: you can override with
+# KERNEL=.... sudo ./virtbench
+if [ -z "$KERNEL" ]; then
+    KERNEL=/lib/modules/`uname -r`/build/arch/i386/boot/bzImage
+fi
+
+# Logging will go into $LOGFILES-<number>
+LOGFILES=/tmp/virtbench.log
+
+# KVM settings
+QEMU=qemu
+
+# Lguest settings
+SHARENET_FILE=/tmp/virtbench-lguest-net
+

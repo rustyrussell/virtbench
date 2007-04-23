@@ -1,4 +1,4 @@
 #! /bin/sh
 
-. kvm/SETTINGS
+. ./SETTINGS
 exit 0

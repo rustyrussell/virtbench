@@ -1,7 +1,5 @@
 #! /bin/sh
 
-set -e
-
 . lguest/SETTINGS
 
 rm -f $LOGFILES*

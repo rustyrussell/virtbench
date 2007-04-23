@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. xen/SETTINGS
+. /SETTINGS
 
 VIRTBENCH_ID=$1
 IP=$2

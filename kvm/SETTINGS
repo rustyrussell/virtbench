@@ -1,7 +1,0 @@
-# Sourced from all scripts
-if [ -z "$KERNELDIR" ]; then
-	KERNELDIR=/lib/modules/`uname -r`/build
-fi
-LOGFILES=/tmp/virtbench.kvm.log
-KERNEL=$KERNELDIR/arch/i386/boot/bzImage
-QEMU=qemu

@@ -1,8 +1,0 @@
-# Sourced from all the scripts
-if [ -z "$KERNELDIR" ]; then
-	KERNELDIR=/lib/modules/`uname -r`/build
-fi
-SHARENET_FILE=/tmp/virtbench-lguest-net
-LGUEST=$KERNELDIR/Documentation/lguest/lguest
-LOGFILES=/tmp/virtbench.lguest.log
-KERNEL=$KERNELDIR/vmlinux

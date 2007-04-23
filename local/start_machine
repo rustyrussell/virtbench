@@ -1,5 +1,7 @@
 #! /bin/sh
 
+. ./SETTINGS
+
 # For local tests, we just run the process.  We could bind to remote
 # CPUs if we wanted.
 

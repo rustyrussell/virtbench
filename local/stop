@@ -1,4 +1,5 @@
 #! /bin/sh
 
+. ./SETTINGS
 exit 0
 

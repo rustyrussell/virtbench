@@ -1,4 +1,6 @@
 #! /bin/sh
 
+. ./SETTINGS
 kill $1
+# virtbench tends to create little turds
 rm -f /tmp/virtbench-read-bandwidth.test /tmp/virtbench-read-latency.test
