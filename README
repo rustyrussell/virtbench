@@ -1,0 +1,151 @@
+Virtbench - Simple Benchmarking for Virtualization
+	http://ozlabs.org/~rusty/virtbench
+
+Virtbench is a set of (mainly micro-) benchmarks designed to assist
+coders optimize their hypervisors.  Note that it won't tell you how
+well a virtualization solution will perform in a real world situation.
+
+
+Requirements:
+	sudo
+	/dev/net/tun: try "modprobe tun"
+	The networks 192.168.19.0 and 192.168.12.0 free to be used.
+
+
+Quickstart:
+	# Build the code and root filesystems (will use sudo)
+	make
+	# Set the guest kernel location and maybe more
+	vi ./SETTINGS
+	# Run the benchmark (local mode)
+	sudo ./virtbench local
+	# Run the benchmark (kvm mode)
+	sudo ./virtbench kvm
+
+
+More information:
+
+(Note that virtbench is very much a work in progress)
+
+Virtbench spawns 4 virtual machines running the virtbench client, then
+runs various tests on them.  It supports various backends, and you can
+create a new directory to add new ones (see below):
+
+	- local (simply run each client as a normal process)
+	- lguest
+	- kvm
+	- qemu
+
+Since most hypervisors require root privileges, virtbench is usually
+run as root.
+
+All benchmarks are measured as time taken to do some task, so smaller
+is better.  Currently virtbench has 14 microbenchmarks and 4
+inter-guest benchmarks, but you can write new ones (see below).
+
+Options which might be useful:
+	--ifname=<if>: use an interface other than "eth0" to get server IP.
+	--rough: don't run benchmarks as many times.
+	--distribution: show distribution details for results.
+	--csv=<file>: record complete results to file
+	--help: usage and list of benchmark names
+	[benchnames]: run this/these benchmarks
+
+
+Writing New Benchmarks:
+
+Writing new benchmarks is designed to be pretty trivial.  They are
+placed in subdirectories (currently micro/ or inter/ for
+microbenchmarks and inter-guest benchmarks).  Any .c file in these
+directories is picked up, so no Makefile editing is necessary.
+
+You need to include "../benchmarks.h", then define a "struct
+benchmark" like so:
+
+	struct benchmark my_benchmark _benchmark_
+	= { "mybench", "Time for one foobar",
+	    do_single_bench, do_mybench };
+
+Note the "_benchmark_" marker which auto-registers your benchmark.
+The first element is the benchmark name (for command-line usage), the
+second is the string to display before the result, the third is the
+server-side routine to run the benchmark, and finally your client-side
+benchmark routine.
+
+Here are the existing server-side routines:
+do_single_bench:
+	Run this benchmark on a single randomly chosen machine (normal
+	for microbenchmarks)
+
+do_pair_bench:
+	Run this benchmark on two randomly chosen machines (normal for
+	inter-guest benchmarks).
+
+do_pair_bench_onestop:
+	Run this benchmark on two randomly chosen machines, but finish
+	the timer as soon as either machine finishes.
+
+The client-side benchmark has a prototype like so;
+static void my_bench(int fd, u32 runs, struct benchmark *bench,
+		     const void *opts);
+  - fd: the server socket
+  - runs: the number of iterations to run the benchmark for (can be 0)
+  - bench: the benchmark we are running.
+  - opts: the option sent by the server (do_pair_bench passes a "struct
+    pair_opt" here to so clients know if they're the first or second).
+
+The client routine should do any required setup, then call
+"wait_for_start(fd)".  If this returns true, run the benchmark "runs"
+times then call "send_ack(fd);".  Then cleanup and return.
+
+
+Writing New Backends
+
+To implement support for a new hypervisor, you need to create a new
+directory (eg. "mkdir myhype") and put four executable scripts in it.
+Each script should start with ". ./SETTINGS" to absorb the global
+settings.
+
+- start:
+	This script is run at the beginning; a chance to
+	insert modules, create devices, check for requirements
+	etc.
+
+- start_machine:
+	This is the most complex script.  It takes three arguments:
+	the client number to create (0 to 3), the server IP address,
+	and the server port number.  It should print an identifier on
+	standard output (this identifier is for your own use: it will
+	be handed back to you for stop_machine).  This script must
+	create the virtual machine using the ext2 root filesystem
+	found in rootfs/virtbench-root-$1.  The virtual machine is
+	usually started with a command line of init=/virtclient
+	[virtclient args].  virtclient takes 5 or 6 arguments:
+		clientid ($1)
+		serverip ($2)
+		serverport ($3)
+		extifname (usually "eth0")
+		ifaddr (usually 192/168/19/$(($1 + 1)))
+		intifname (optional)
+
+	The final argument is used if you want a separate network for
+	inter-guest communications (lguest uses "eth1" for
+	inter-guest, others route via the host).
+
+	Note that the Linux kernel doesn't allow command line
+	arguments with "." in them, so virtclient accepts IP addresses
+	with "/" in place of ".".
+
+	Your script will also need to set up any routing required for
+	the guests to communicate.
+
+- stop_machine:
+	Takes one argument: the identifier returned by start_machine.
+	This should kill the virtual machine.
+
+- stop:
+	Called at the end to clean up and remove modules, etc.
+
+
+Enjoy!
+Rusty Russell <rusty@rustcorp.com.au>
