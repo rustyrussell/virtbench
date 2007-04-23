@@ -246,7 +246,8 @@ static char **bringup_machines(int sock, const char *ifname)
 	struct sockaddr_in addr;
 	
 	startcmd = talloc_asprintf(NULL, "%s/start", virtdir);
-	do_command(startcmd);
+	if (!do_command(startcmd))
+		errx(1, "Start command failed for %s", virtdir);
 	(void)talloc_steal(talloc_autofree_context(), startcmd);
 	talloc_set_destructor(startcmd, stop);
 

@@ -5,12 +5,12 @@ set -e
 . kvm/SETTINGS
 
 if grep -q AuthenticAMD /proc/cpuinfo; then
-    modules="kvm-amd"
+    module="kvm-amd"
 else
-    modules="kvm-intel"
+    module="kvm-intel"
 fi
 
-[ -c /dev/kvm ] || modprobe $m
+[ -c /dev/kvm ] || modprobe $module
 
 # We need to enable packet forwarding for inter-guest tests
 echo 1 > /proc/sys/net/ipv4/ip_forward
