@@ -1,0 +1,4 @@
+#! /bin/sh
+
+. kvm/SETTINGS
+exit 0

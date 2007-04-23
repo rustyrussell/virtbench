@@ -1,0 +1,4 @@
+#! /bin/sh
+# Set up tap interface, but remove route to that network.
+/sbin/ifconfig $1 $IPADDR
+/sbin/route del -net `echo $IPADDR | cut -d. -f1-3`.0 netmask 255.255.255.0 dev $1

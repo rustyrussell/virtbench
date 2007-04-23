@@ -1,0 +1,20 @@
+#! /bin/sh
+
+. kvm/SETTINGS
+
+# Export this for ifup
+IPADDR=192.168.12.$(($1+1))
+export IPADDR
+
+# Redirect everything so this doesn't hold pipe open.
+$QEMU -m 512m -net nic -net tap,ifname=tap$1,script=kvm/ifup -nographic -hda rootfs/virtbench-root-$1 -snapshot -kernel $KERNEL -append "rw root=/dev/hda console=ttyS0 init=/virtclient $1 `echo $2 | tr . /` $3 eth0 192/168/19/$(($1+1))" > $LOGFILES-$1 2>&1 < /dev/null &
+jobs -p %1
+
+for i in `seq 5`; do
+    if route add -host 192.168.19.$(($1+1)) dev tap$1 2>/dev/null; then
+	echo 1 > /proc/sys/net/ipv4/conf/tap$1/proxy_arp 
+	exit 0
+    fi
+    sleep 1
+done
+exit 1

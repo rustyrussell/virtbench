@@ -1,0 +1,5 @@
+#! /bin/sh
+
+. kvm/SETTINGS
+
+kill $1
