@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include "../benchmarks.h"
 
+#ifdef __i386__
 static inline int int_getppid()
 {
 	int ppid;
@@ -30,3 +31,4 @@ struct benchmark int_syscall_benchmark _benchmark_
 = { "int-syscall", "Time for one int-0x80 syscall",
     do_single_bench, do_syscall_bench };
 
+#endif	/* __i386__ */

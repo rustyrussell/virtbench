@@ -29,7 +29,8 @@ static inline bool strends(const char *a, const char *b)
 /* Upper bound to sprintf this simple type?  Each 3 bits < 1 digit. */
 #define CHAR_SIZE(type) (((sizeof(type)*CHAR_BIT + 2) / 3) + 1)
 
-typedef uint64_t u64;
+/* 64-bit platforms use "unsigned long" for u64, which screws printf */
+typedef unsigned long long u64;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;

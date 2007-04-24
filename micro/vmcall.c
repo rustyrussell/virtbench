@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include "../benchmarks.h"
 
+#ifdef __i386__
 #define VMCALL_NOP 0
 #define VMMCALL_NOP 0
 
@@ -98,3 +99,4 @@ struct benchmark vmcall_wait_benchmark _benchmark_
 struct benchmark vmmcall_wait_benchmark _benchmark_
 = { "vmmcall", "Time for one VMMCALL (SVM) instruction",
     do_single_bench, do_vmcall, vmcall_should_not_run };
+#endif /* __i386__ */
