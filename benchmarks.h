@@ -14,7 +14,7 @@ struct benchmark
 	/* If we shouldn't run, return reason. */
 	const char *(*should_not_run)(const char *platform,
 				      struct benchmark *bench);
-};
+} __attribute__((aligned(32))); /* x86-64 mega-aligns this section. Grr... */
 
 struct pair_opt
 {
