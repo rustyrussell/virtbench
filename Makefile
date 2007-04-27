@@ -32,7 +32,7 @@ $(BASE_ROOTFS): Makefile $(BASE_ROOTFS).tmp
 $(BASE_ROOTFS).tmp:
 	# 50M
 	dd if=/dev/zero of=$@ count=50 bs=1048576
-	mkfs.ext3 -q -F $@
+	/sbin/mkfs.ext3 -q -F $@
 	# /dev/xvda needed for xen
 	set -e; sudo mount -text3 -o,loop,rw $@ /mnt;	\
 	 trap 'sudo umount /mnt' 0;			\
