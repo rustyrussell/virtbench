@@ -10,7 +10,7 @@ Requirements:
 	sudo
 	/dev/net/tun: try "modprobe tun"
 	The networks 192.168.19.0 and 192.168.12.0 free to be used.
-
+	A kernel with ext3 support built in
 
 Quickstart:
 	# Build the code and root filesystems (will use sudo)
@@ -117,7 +117,7 @@ settings.
 	and the server port number.  It should print an identifier on
 	standard output (this identifier is for your own use: it will
 	be handed back to you for stop_machine).  This script must
-	create the virtual machine using the ext2 root filesystem
+	create the virtual machine using the ext3 root filesystem
 	found in rootfs/virtbench-root-$1.  The virtual machine is
 	usually started with a command line of init=/virtclient
 	[virtclient args].  virtclient takes 5 or 6 arguments:

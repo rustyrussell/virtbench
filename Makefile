@@ -32,9 +32,9 @@ $(BASE_ROOTFS): Makefile $(BASE_ROOTFS).tmp
 $(BASE_ROOTFS).tmp:
 	# 50M
 	dd if=/dev/zero of=$@ count=50 bs=1048576
-	mke2fs -q -F $@
+	mkfs.ext3 -q -F $@
 	# /dev/xvda needed for xen
-	set -e; sudo mount -text2 -o,loop,rw $@ /mnt;	\
+	set -e; sudo mount -text3 -o,loop,rw $@ /mnt;	\
 	 trap 'sudo umount /mnt' 0;			\
 	 sudo mkdir /mnt/lib /mnt/tmp /mnt/dev /mnt/proc; \
 	 sudo mknod /mnt/dev/null    c   1 3;		\
@@ -47,8 +47,6 @@ $(BASE_ROOTFS).tmp:
 $(ROOTFS): $(BASE_ROOTFS) virtclient
 	[ $(BASE_ROOTFS) -ot $@ ] || cp $(BASE_ROOTFS) $@
 	set -e; trap 'sudo umount /mnt' 0; \
-	 sudo mount -text2 -o,loop,rw $@ /mnt;	\
+	 sudo mount -text3 -o,loop,rw $@ /mnt;	\
 	 sudo cp virtclient /mnt; \
-	 sudo cp /lib/ld-linux* /mnt/lib; \
-	 sudo cp /lib/libc* /mnt/lib; \
-	 sudo cp -a /lib/tls /mnt/lib/tls
+	 cd /; sudo cp --parents `ldd /mnt/virtclient | sed -e 's/.*=>//' -e 's/(.*//'` /mnt
