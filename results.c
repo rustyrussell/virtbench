@@ -174,7 +174,8 @@ static struct peak *get_peaks(const struct results *r, unsigned int *num)
 	return peaks;
 }
 
-bool results_done(struct results *r, unsigned int *runs, bool rough)
+bool results_done(struct results *r, unsigned int *runs, bool rough,
+		  unsigned int forced_runs)
 {
 	u64 avg;
 	struct peak *peaks;
@@ -185,6 +186,14 @@ bool results_done(struct results *r, unsigned int *runs, bool rough)
 
 	if (r->num_results < MINIMUM_RUNS)
 		return false;
+
+	if (forced_runs) {
+		r->overhead = 0;
+		/* We give raw results */
+		r->final_runs = 1;
+		r->peaks = get_peaks(r, &r->num_peaks);
+		return true;
+	}
 
 	if (*runs == 0) {
 		*runs = 1;

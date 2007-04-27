@@ -307,9 +307,10 @@ static void dump_profile(void)
 	system("readprofile");
 }
 
-struct results *do_single_bench(struct benchmark *bench, bool rough)
+struct results *do_single_bench(struct benchmark *bench, bool rough,
+				unsigned int forced_runs)
 {
-	unsigned int runs = 0, prev_runs = 1;
+	unsigned int runs = forced_runs, prev_runs = -1U;
 	struct results *r = new_results();
 	int client[1] = { random() % NUM_MACHINES };
 
@@ -330,7 +331,7 @@ struct results *do_single_bench(struct benchmark *bench, bool rough)
 			printf(".");
 			fflush(stdout);
 		}
-	} while (!results_done(r, &runs, rough));
+	} while (!results_done(r, &runs, rough, forced_runs));
 	if (profile)
 		dump_profile();
 	return r;
@@ -348,9 +349,10 @@ static u32 getip(int client)
 }
 
 static struct results *some_pair_bench(struct benchmark *bench,
-				       bool onestop, bool rough)
+				       bool onestop, bool rough,
+				       unsigned int forced_runs)
 {
-	unsigned int runs = 0, prev_runs = 1;
+	unsigned int runs = forced_runs, prev_runs = 1;
 	struct results *r = new_results();
 	int clients[2];
 
@@ -388,18 +390,20 @@ static struct results *some_pair_bench(struct benchmark *bench,
 			printf(".");
 			fflush(stdout);
 		}
-	} while (!results_done(r, &runs, rough));
+	} while (!results_done(r, &runs, rough, forced_runs));
 	return r;
 }
 
-struct results *do_pair_bench(struct benchmark *bench, bool rough)
+struct results *do_pair_bench(struct benchmark *bench, bool rough,
+			      unsigned int forced_runs)
 {
-	return some_pair_bench(bench, false, rough);
+	return some_pair_bench(bench, false, rough, forced_runs);
 }
 
-struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough)
+struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough,
+			      unsigned int forced_runs)
 {
-	return some_pair_bench(bench, true, rough);
+	return some_pair_bench(bench, true, rough, forced_runs);
 }
 
 static bool benchmark_listed(const char *bench, char *argv[])
@@ -422,6 +426,7 @@ int main(int argc, char *argv[])
 	char **names;
 	struct sigaction act;
 	int sock;
+	unsigned int forced_runs = 0;
 	bool done = false, rough = false;
 	const char *ifname = "eth0";
 	struct option lopts[] = {
@@ -432,6 +437,7 @@ int main(int argc, char *argv[])
 		{ "ifname", 1, 0, 'i' },
 		{ "distribution", 0, 0, 'd' },
 		{ "rough", 0, 0, 'r' },
+		{ "runs", 1, 0, 'R' },
 		{ 0 },
 	};
 	const char *sopts = "phc:";
@@ -461,6 +467,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'r':
 			rough = true;
+			break;
+		case 'R':
+			forced_runs = atoi(optarg);
 			break;
 		default:
 			usage(1);
@@ -510,7 +519,7 @@ int main(int argc, char *argv[])
 			printf("Running benchmark %s", b->name);
 			fflush(stdout);
 		}
-		results = b->server(b, rough);
+		results = b->server(b, rough, forced_runs);
 		if (progress)
 			printf("\n");
 

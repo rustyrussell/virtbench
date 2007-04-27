@@ -8,7 +8,8 @@ struct benchmark
 {
 	const char *name;
 	const char *pretty_name;
-	struct results *(*server)(struct benchmark *bench, bool rough);
+	struct results *(*server)(struct benchmark *bench, bool rough,
+				  unsigned int forced_runs);
 	void (*client)(int fd, u32 runs,
 		       struct benchmark *bench, const void *opts);
 	/* If we shouldn't run, return reason. */
@@ -25,7 +26,8 @@ struct pair_opt
 
 struct results *new_results(void);
 void add_result(struct results *, u64 res);
-bool results_done(struct results *, unsigned int *runs, bool rough);
+bool results_done(struct results *, unsigned int *runs, bool rough,
+		  unsigned int forced_runs);
 /* Answers are attached to the "struct results", so needn't be freed */
 char *results_to_csv(struct results *);
 char *results_to_dist_summary(struct results *);
@@ -35,9 +37,12 @@ char *results_to_quick_summary(struct results *);
 extern struct benchmark __start_benchmarks[], __stop_benchmarks[];
 
 /* Local (server) side helpers. */
-struct results *do_single_bench(struct benchmark *bench, bool rough);
-struct results *do_pair_bench(struct benchmark *bench, bool rough);
-struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough);
+struct results *do_single_bench(struct benchmark *bench, bool rough,
+				unsigned int forced_runs);
+struct results *do_pair_bench(struct benchmark *bench, bool rough,
+				unsigned int forced_runs);
+struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough,
+				      unsigned int forced_runs);
 
 /* Remote (client) side helpers. */
 struct sockaddr;
