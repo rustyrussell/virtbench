@@ -1,6 +1,6 @@
 #! /bin/sh
 
-. lguest/SETTINGS
+. ./SETTINGS
 
 rm -f $LOGFILES*
 rm -f $SHARENET_FILE

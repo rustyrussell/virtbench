@@ -1,4 +1,4 @@
 #! /bin/sh
 
-. lguest/SETTINGS
+. ./SETTINGS
 exit 0

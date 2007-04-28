@@ -20,4 +20,5 @@ fi
 
 # Lguest settings
 SHARENET_FILE=/tmp/virtbench-lguest-net
+LGUEST=/lib/modules/`uname -r`/build/Documentation/lguest/lguest
 
