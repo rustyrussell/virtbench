@@ -10,7 +10,7 @@ else
     module="kvm-intel"
 fi
 
-[ -c /dev/kvm ] || modprobe $module
+[ -c /dev/kvm ] || { /sbin/modprobe $module && /sbin/udevsettle; }
 
 # We need to enable packet forwarding for inter-guest tests
 echo 1 > /proc/sys/net/ipv4/ip_forward
