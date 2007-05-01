@@ -5,7 +5,7 @@ set -e
 # Where your guest kernel lives: you can override with
 # KERNEL=.... sudo ./virtbench
 if [ -z "$KERNEL" ]; then
-    KERNEL=/lib/modules/`uname -r`/build/arch/i386/boot/bzImage
+    KERNEL=/lib/modules/`uname -r`/build/arch/$(uname -i)/boot/bzImage
 fi
 
 # Logging will go into $LOGFILES-<number>
