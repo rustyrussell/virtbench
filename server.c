@@ -526,7 +526,11 @@ int main(int argc, char *argv[])
 		if (csv_fp)
 			fprintf(csv_fp, "%s\n", results_to_csv(results));
 
-		printf("%s: %s\n", b->pretty_name, printer(results));
+		if (forced_runs)
+			printf("%s (x %u): %s\n",
+			       b->pretty_name, forced_runs, printer(results));
+		else
+			printf("%s: %s\n", b->pretty_name, printer(results));
 	}
 
 	if (!done)
