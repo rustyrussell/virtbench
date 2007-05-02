@@ -10,7 +10,7 @@ Requirements:
 	sudo
 	/dev/net/tun: try "modprobe tun"
 	The networks 192.168.19.0 and 192.168.12.0 free to be used.
-	A kernel with ext3 support built in
+	A kernel with CONFIG_BLK_DEV_INITRD=y
 
 Quickstart:
 	# Build the code and root filesystems (will use sudo)
@@ -37,7 +37,7 @@ create a new directory to add new ones (see below):
 	- qemu
 
 Since most hypervisors require root privileges, virtbench is usually
-run as root.
+run as root (not required for "local" mode).
 
 All benchmarks are measured as time taken to do some task, so smaller
 is better.  Currently virtbench has 14 microbenchmarks and 4
@@ -117,14 +117,17 @@ settings.
 	and the server port number.  It should print an identifier on
 	standard output (this identifier is for your own use: it will
 	be handed back to you for stop_machine).  This script must
-	create the virtual machine using the ext3 root filesystem
-	found in rootfs/virtbench-root-$1.  The virtual machine is
-	usually started with a command line of init=/virtclient
-	[virtclient args].  virtclient takes 5 or 6 arguments:
+	create the virtual machine using the initramfs found in "initrd.gz",
+	with a block device pointing at "scratchfile".
+
+	The virtual machine is usually started with a command line of
+	"rdinit=/virtclient [virtclient args]". virtclient takes 6 or 7
+	arguments:
 		clientid ($1)
 		serverip ($2)
 		serverport ($3)
 		extifname (usually "eth0")
+		scratch block device (eg "/dev/hda")
 		ifaddr (usually 192/168/19/$(($1 + 1)))
 		intifname (optional)
 

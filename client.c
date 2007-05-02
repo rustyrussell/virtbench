@@ -133,10 +133,11 @@ static void remove_base_route(const char *devname, u32 devaddr)
 
 static void __attribute__((noreturn)) usage(void)
 {
-	errx(1, "Usage: virtclient clientid serverip serverport [extifname ifaddr [intifname]\n");
+	errx(1, "Usage: virtclient clientid serverip serverport blockdev [extifname ifaddr [intifname]\n");
 }
 
 char *argv0;
+char *blockdev;
 int main(int argc, char *argv[])
 {
 	int sock, len, id;
@@ -148,17 +149,18 @@ int main(int argc, char *argv[])
 	if (argc == 2)
 		exec_test(argv[1]);
 
-	if (argc != 4 && argc != 6 && argc != 7)
+	if (argc != 5 && argc != 6 && argc != 8)
 		usage();
 
-	if (argc >= 6) {
-		addr = setup_network(argv[4], argv[5]);
-		add_default_route(argv[4]);
+	blockdev = argv[4];
+	if (argc >= 7) {
+		addr = setup_network(argv[5], argv[6]);
+		add_default_route(argv[5]);
 
 		if (argc == 7) {
-			setup_network(argv[6], argv[5]);
+			setup_network(argv[7], argv[6]);
 			/* We don't want local traffic out external iface */
-			remove_base_route(argv[4], addr.s_addr);
+			remove_base_route(argv[5], addr.s_addr);
 		}
 	}
 

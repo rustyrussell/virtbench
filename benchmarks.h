@@ -49,6 +49,7 @@ struct sockaddr;
 bool wait_for_start(int sock);
 void send_ack(int sock);
 void exec_test(char *runstr);
+extern char *blockdev;
 
 #define _benchmark_ __attribute__((section("benchmarks"), used))
 

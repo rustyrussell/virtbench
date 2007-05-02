@@ -3,7 +3,15 @@
 . ./SETTINGS
 
 # Redirect everything so this doesn't hold socket open.
-$LGUEST 512m $KERNEL --block=rootfs/virtbench-root-$1 --tunnet=192.168.12.$(($1+1)) --sharenet=$SHARENET_FILE root=/dev/lgba rw debug init=/virtclient $1 `echo $2 | tr . /` $3 eth0 192/168/19/$(($1+1)) eth1 > $LOGFILES-$1 2>&1 < /dev/null &
+$LGUEST 512m $KERNEL						\
+	--block=scratchfile					\
+	--tunnet=192.168.12.$(($1+1))				\
+	--sharenet=$SHARENET_FILE				\
+	--initrd=initrd.gz					\
+	debug							\
+	rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/lgba	\
+		eth0 192/168/19/$(($1+1)) eth1			\
+	> $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
 
 for i in `seq 5`; do

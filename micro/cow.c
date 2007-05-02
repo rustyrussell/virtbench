@@ -11,18 +11,16 @@ static void do_cow(int fd, u32 runs, struct benchmark *bench, const void *opts)
 	unsigned int i;
 	int *maps[runs];
 	int pagefd;
-	char page[getpagesize()];
 
-	memset(page, 0, sizeof(page));
-	if (write(pagefd = open("/tmp/cow_test", O_RDWR|O_CREAT, 0600),
-		  page, getpagesize()) != getpagesize())
-		err(1, "writing /tmp/cow_test");
+	pagefd = open(blockdev, O_RDWR);
+	if (pagefd < 0)
+		err(1, "opening %s", blockdev);
 
 	for (i = 0; i < runs; i++) {
 		maps[i] = mmap(NULL, getpagesize(), PROT_READ|PROT_WRITE,
 			       MAP_PRIVATE, pagefd, 0);
 		if (maps[i] == MAP_FAILED)
-			err(1, "mapping /tmp/cow_test");
+			err(1, "mapping %s", blockdev);
 	}
 
 	send_ack(fd);
@@ -42,6 +40,4 @@ static void do_cow(int fd, u32 runs, struct benchmark *bench, const void *opts)
 }
 
 struct benchmark cow_benchmark _benchmark_
-= { "cow", "Time for one Copy-on-Write fault",
-    do_single_bench, do_cow };
-
+= { "cow", "Time for one Copy-on-Write fault", do_single_bench, do_cow };

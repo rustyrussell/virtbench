@@ -552,3 +552,4 @@ void send_ack(int sock)
 	assert(0);
 }
 char *argv0;
+char *blockdev;
