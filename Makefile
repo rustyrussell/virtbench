@@ -32,7 +32,7 @@ $(INITRD): rootfs/mnt
 DEVICES:=/dev/null /dev/zero /dev/console
 
 # This is a tree of symlinks, that way we don't need to be root to create it.
-# Unfortunately, still need to create the special devices for xen & lguest. 
+# Unfortunately, still need to create the special devices for xen, lguest, kvm.
 rootfs/mnt: $(DEVICES) virtclient
 	for f in $(DEVICES) `ldd ./virtclient | sed -e 's/.*=>//' -e 's/(.*//'`; do \
 		mkdir -p $@/`dirname $$f` >/dev/null; \
@@ -42,3 +42,4 @@ rootfs/mnt: $(DEVICES) virtclient
 	[ -b $@/dev/lgba ] || sudo mknod $@/dev/lgba b 254 0
 	[ -b $@/dev/xvda ] || sudo mknod $@/dev/xvda b 202 0
 	[ -b $@/dev/xvda1 ] || sudo mknod $@/dev/xvda1 b 202 1
+	[ -b $@/dev/hda ] || sudo mknod $@/dev/hda b 3 0

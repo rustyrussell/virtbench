@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
 	if (argc == 2)
 		exec_test(argv[1]);
 
-	if (argc != 5 && argc != 6 && argc != 8)
+	if (argc != 5 && argc != 7 && argc != 8)
 		usage();
 
 	blockdev = argv[4];
