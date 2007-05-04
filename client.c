@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
 		addr = setup_network(argv[5], argv[6]);
 		add_default_route(argv[5]);
 
-		if (argc == 7) {
+		if (argc == 8) {
 			setup_network(argv[7], argv[6]);
 			/* We don't want local traffic out external iface */
 			remove_base_route(argv[5], addr.s_addr);
