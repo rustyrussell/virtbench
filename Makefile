@@ -11,7 +11,7 @@ all: virtbench virtclient scratchfile $(INITRD)
 include testsuite/Makefile
 
 clean:
-	$(RM) virtbench virtclient $(INITRD)
+	$(RM) virtbench virtclient scratchfile $(INITRD)
 
 distclean: clean
 	$(RM) -rf rootfs/mnt

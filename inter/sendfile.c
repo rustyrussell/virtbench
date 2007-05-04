@@ -1,4 +1,6 @@
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/sendfile.h>
 #include <netinet/in.h>
@@ -24,19 +26,15 @@ static void do_sendfile_bench(int fd, u32 runs,
 {
 	/* We're going to send TCP packets to that addr. */
 	struct sockaddr_in saddr;
-	int sock, ret;
+	int sock, ret, blkfd;
 	const struct pair_opt *opt = opts;
 	char *mem = malloc(SENDFILE_SIZE);
-	FILE *f;
-
 	if (!mem)
 		err(1, "allocating %i bytes", SENDFILE_SIZE);
-	f = tmpfile();
-	if (!f)
-		err(1, "opening temporary file");
-	memset(mem, 0xFF, SENDFILE_SIZE);
-	if (fwrite(mem, SENDFILE_SIZE, 1, f) != 1)
-		err(1, "writing temporary file");
+
+	blkfd = open(blockdev, O_RDONLY);
+	if (blkfd < 0)
+		err(1, "opening block file %s", blockdev);
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
@@ -81,8 +79,8 @@ static void do_sendfile_bench(int fd, u32 runs,
 			int done = 0;
 			if (opt->start) {
 				off_t off = 0;
-				if (sendfile(sock, fileno(f), &off,
-					     SENDFILE_SIZE) != SENDFILE_SIZE)
+				if (sendfile(sock, blkfd, &off, SENDFILE_SIZE)
+				    != SENDFILE_SIZE)
 					err(1, "doing sendfile");
 			} else {
 				while ((ret = read(sock, mem+done,
@@ -93,20 +91,13 @@ static void do_sendfile_bench(int fd, u32 runs,
 				}
 				if (ret <= 0)
 					err(1, "reading from other end");
-				{
-					unsigned int j;
-					for (j = 0; j < SENDFILE_SIZE; j++)
-						if ((unsigned char)mem[j] != 0xFF)
-							errx(1, "position %i is %i\n",
-							     j, (unsigned char)mem[j]);
-				}
 			}
 		}
 		send_ack(fd);
 	}
 	close(sock);
 	free(mem);
-	fclose(f);
+	close(blkfd);
 }
 
 static struct benchmark sendfile_benchmark _benchmark_
