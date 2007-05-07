@@ -17,12 +17,36 @@ static const char pretty_name[]
 	((u8)(ip >> 8)),			\
 	((u8)(ip))
 
+static void send_data(int fd, const void *mem, unsigned long size)
+{
+	long ret, done = 0;
+	while ((ret = write(fd, mem+done, size-done)) > 0) {
+		done += ret;
+		if (done == size)
+			return;
+	}
+	if (ret < 0 || size != 0)
+		err(1, "writing to other end");
+}
+
+static void receive_data(int fd, void *mem, unsigned long size)
+{
+	long ret, done = 0;
+	while ((ret = read(fd, mem+done, size-done)) > 0) {
+		done += ret;
+		if (done == size)
+			return;
+	}
+	if (ret < 0 || size != 0)
+		err(1, "reading from other end");
+}
+
 static void do_bandwidth_bench(int fd, u32 runs,
 			       struct benchmark *bench, const void *opts)
 {
 	/* We're going to send TCP packets to that addr. */
 	struct sockaddr_in saddr;
-	int sock, ret;
+	int sock;
 	const struct pair_opt *opt = opts;
 	char *mem = malloc(BANDWIDTH_SIZE);
 
@@ -68,27 +92,17 @@ static void do_bandwidth_bench(int fd, u32 runs,
 
 	if (wait_for_start(fd)) {
 		u32 i;
+		/* Warmup first. */
+		if (opt->start)
+			send_data(sock, mem, NET_WARMUP_BYTES);
+		else
+			receive_data(sock, mem, NET_WARMUP_BYTES);
+
 		for (i = 0; i < runs; i++) {
-			int done = 0;
-			if (opt->start) {
-				while ((ret = write(sock, mem+done,
-						    BANDWIDTH_SIZE-done)) > 0){
-					done += ret;
-					if (done == BANDWIDTH_SIZE)
-						break;
-				}
-				if (ret <= 0)
-					err(1, "writing to other end");
-			} else {
-				while ((ret = read(sock, mem+done,
-						   BANDWIDTH_SIZE-done)) > 0) {
-					done += ret;
-					if (done == BANDWIDTH_SIZE)
-						break;
-				}
-				if (ret <= 0)
-					err(1, "reading from other end");
-			}
+			if (opt->start)
+				send_data(sock, mem, NET_BANDWIDTH_SIZE);
+			else
+				receive_data(sock, mem, NET_BANDWIDTH_SIZE);
 		}
 		send_ack(fd);
 	}
@@ -97,5 +111,5 @@ static void do_bandwidth_bench(int fd, u32 runs,
 }
 
 static struct benchmark bandwidth_benchmark _benchmark_
-= { "bandwidth", pretty_name, do_pair_bench, do_bandwidth_bench };
+= { "inter-tcp-bandwidth", pretty_name, do_pair_bench, do_bandwidth_bench };
 

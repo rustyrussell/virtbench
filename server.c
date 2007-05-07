@@ -406,6 +406,67 @@ struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough,
 	return some_pair_bench(bench, true, rough, forced_runs);
 }
 
+#define MB * 1024 * 1024
+
+static void receive_data(int fd, void *mem, unsigned long size)
+{
+	long ret, done = 0;
+	while ((ret = read(fd, mem+done, size-done)) > 0) {
+		done += ret;
+		if (done == size)
+			return;
+	}
+	if (ret < 0 || size != 0)
+		err(1, "reading from other end");
+}
+
+struct results *do_receive_bench(struct benchmark *bench, bool rough,
+				 unsigned int forced_runs)
+{
+	unsigned int runs = forced_runs, prev_runs = -1U;
+	struct results *r = new_results();
+	int client[1] = { random() % NUM_MACHINES };
+	char *recvmem = NULL;
+
+	do {
+		struct timeval start;
+
+		if (runs != prev_runs) {
+			unsigned long size;
+			if (progress)
+				printf("%u runs:", runs);
+			if (profile)
+				reset_profile();
+			prev_runs = runs;
+			size = NET_BANDWIDTH_SIZE*runs;
+			if (size < NET_WARMUP_BYTES)
+				size = NET_WARMUP_BYTES;
+			recvmem = realloc(recvmem, size);
+			if (!recvmem)
+				err(1, "Allocating %lu bytes", size);
+		}
+		setup_bench(client[0], bench->name, "", 0, runs);
+		start_timer(&start);
+		send_start_to_client(client[0]);
+
+		/* Read warmup */
+		receive_data(sockets[client[0]], recvmem, NET_WARMUP_BYTES);
+
+		/* Read real results. */
+		receive_data(sockets[client[0]], recvmem,
+			     NET_BANDWIDTH_SIZE*runs);
+
+		add_result(r, end_test(&start, client, 1));
+		if (progress) {
+			printf(".");
+			fflush(stdout);
+		}
+	} while (!results_done(r, &runs, rough, forced_runs));
+	if (profile)
+		dump_profile();
+	return r;
+}
+
 static bool benchmark_listed(const char *bench, char *argv[])
 {
 	unsigned int i;

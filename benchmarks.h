@@ -43,6 +43,11 @@ struct results *do_pair_bench(struct benchmark *bench, bool rough,
 				unsigned int forced_runs);
 struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough,
 				      unsigned int forced_runs);
+struct results *do_receive_bench(struct benchmark *bench, bool rough,
+				 unsigned int forced_runs);
+
+#define NET_BANDWIDTH_SIZE 1 MB
+#define NET_WARMUP_BYTES 1 MB
 
 /* Remote (client) side helpers. */
 struct sockaddr;
