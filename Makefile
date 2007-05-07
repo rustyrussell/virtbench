@@ -38,7 +38,3 @@ rootfs/mnt: $(DEVICES) virtclient
 		ln -sf $$f $@/$$f; \
 	done
 	ln -sf `pwd`/virtclient rootfs/mnt/virtclient
-	[ -b $@/dev/lgba ] || sudo mknod $@/dev/lgba b 254 0
-	[ -b $@/dev/xvda ] || sudo mknod $@/dev/xvda b 202 0
-	[ -b $@/dev/xvda1 ] || sudo mknod $@/dev/xvda1 b 202 1
-	[ -b $@/dev/hda ] || sudo mknod $@/dev/hda b 3 0
