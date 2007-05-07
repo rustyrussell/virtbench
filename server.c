@@ -317,8 +317,10 @@ struct results *do_single_bench(struct benchmark *bench, bool rough,
 	do {
 		struct timeval start;
 		if (runs != prev_runs) {
-			if (progress)
+			if (progress) {
 				printf("%u runs:", runs);
+				fflush(stdout);
+			}
 			if (profile)
 				reset_profile();
 			prev_runs = runs;
@@ -366,8 +368,10 @@ static struct results *some_pair_bench(struct benchmark *bench,
 		struct pair_opt opt;
 
 		if (runs != prev_runs) {
-			if (progress)
+			if (progress) {
 				printf("%u runs:", runs);
+				fflush(stdout);
+			}
 			if (profile)
 				reset_profile();
 			prev_runs = runs;
@@ -417,7 +421,8 @@ static void receive_data(int fd, void *mem, unsigned long size)
 			return;
 	}
 	if (ret < 0 || size != 0)
-		err(1, "reading from other end");
+		err(1, "reading @%lu %lu from other end %i", done, size-done,
+			ret);
 }
 
 struct results *do_receive_bench(struct benchmark *bench, bool rough,
@@ -433,8 +438,10 @@ struct results *do_receive_bench(struct benchmark *bench, bool rough,
 
 		if (runs != prev_runs) {
 			unsigned long size;
-			if (progress)
+			if (progress) {
 				printf("%u runs:", runs);
+				fflush(stdout);
+			}
 			if (profile)
 				reset_profile();
 			prev_runs = runs;
