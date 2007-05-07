@@ -7,7 +7,6 @@ well a virtualization solution will perform in a real world situation.
 
 
 Requirements:
-	sudo
 	/dev/net/tun: try "modprobe tun"
 	The networks 192.168.19.0 and 192.168.12.0 free to be used.
 	A kernel with CONFIG_BLK_DEV_INITRD=y
