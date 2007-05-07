@@ -11,6 +11,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "benchmarks.h"
 #include "stdrusty.h"
 
@@ -133,7 +135,7 @@ static void remove_base_route(const char *devname, u32 devaddr)
 
 static void __attribute__((noreturn)) usage(void)
 {
-	errx(1, "Usage: virtclient clientid serverip serverport blockdev [extifname ifaddr [intifname]\n");
+	errx(1, "Usage: virtclient clientid serverip serverport blockdev [major minor [extifname ifaddr [intifname]]]\n");
 }
 
 char *argv0;
@@ -149,18 +151,24 @@ int main(int argc, char *argv[])
 	if (argc == 2)
 		exec_test(argv[1]);
 
-	if (argc != 5 && argc != 7 && argc != 8)
+	if (argc != 5 && argc != 7 && argc != 9 && argc != 10)
 		usage();
 
 	blockdev = argv[4];
 	if (argc >= 7) {
-		addr = setup_network(argv[5], argv[6]);
-		add_default_route(argv[5]);
+		if (mknod(blockdev, S_IFBLK|0600,
+			  makedev(atoi(argv[5]), atoi(argv[6]))) != 0)
+			err(1, "mknod %s %u:%u\n",
+			    blockdev, atoi(argv[5]), atoi(argv[6]));
+	}
+	if (argc >= 9) {
+		addr = setup_network(argv[7], argv[8]);
+		add_default_route(argv[7]);
 
-		if (argc == 8) {
-			setup_network(argv[7], argv[6]);
+		if (argc == 10) {
+			setup_network(argv[9], argv[8]);
 			/* We don't want local traffic out external iface */
-			remove_base_route(argv[5], addr.s_addr);
+			remove_base_route(argv[7], addr.s_addr);
 		}
 	}
 

@@ -12,7 +12,7 @@ $QEMU -m 512								\
 	-nographic -hda rootfs/virtbench-root-$1			\
 	-kernel $KERNEL							\
 	-initrd initrd.gz						\
-	-append "console=ttyS0 rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/hda eth0 192/168/19/$(($1+1))" \
+	-append "console=ttyS0 rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/hda 3 0 eth0 192/168/19/$(($1+1))" \
 	> $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
 

@@ -10,7 +10,7 @@ $LGUEST 512m $KERNEL						\
 	--initrd=initrd.gz					\
 	debug							\
 	rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/lgba	\
-		eth0 192/168/19/$(($1+1)) eth1			\
+		254 0 eth0 192/168/19/$(($1+1)) eth1			\
 	> $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
 

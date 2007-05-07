@@ -47,7 +47,7 @@ struct results *do_receive_bench(struct benchmark *bench, bool rough,
 				 unsigned int forced_runs);
 
 #define NET_BANDWIDTH_SIZE 1 MB
-#define NET_WARMUP_BYTES 1 MB
+#define NET_WARMUP_BYTES 32768
 
 /* Remote (client) side helpers. */
 struct sockaddr;

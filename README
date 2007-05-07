@@ -21,6 +21,8 @@ Quickstart:
 	sudo ./virtbench local
 	# Run the benchmark (kvm mode)
 	sudo ./virtbench kvm
+	# Run the benchmark (lguest mode)
+	sudo ./virtbench lguest
 
 
 More information:
@@ -121,13 +123,15 @@ settings.
 	with a block device pointing at "scratchfile".
 
 	The virtual machine is usually started with a command line of
-	"rdinit=/virtclient [virtclient args]". virtclient takes 6 or 7
+	"rdinit=/virtclient [virtclient args]". virtclient takes 8 or 9
 	arguments:
 		clientid ($1)
 		serverip ($2)
 		serverport ($3)
 		extifname (usually "eth0")
 		scratch block device (eg "/dev/hda")
+		major number for block device
+		minor number for block device
 		ifaddr (usually 192/168/19/$(($1 + 1)))
 		intifname (optional)
 
