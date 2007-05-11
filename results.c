@@ -189,10 +189,7 @@ bool results_done(struct results *r, unsigned int *runs, bool rough,
 
 	if (forced_runs) {
 		r->overhead = 0;
-		/* We give raw results */
-		r->final_runs = 1;
-		r->peaks = get_peaks(r, &r->num_peaks);
-		return true;
+		goto analyze_peaks;
 	}
 
 	if (*runs == 0) {
@@ -217,6 +214,7 @@ bool results_done(struct results *r, unsigned int *runs, bool rough,
 		return false;
 	}
 
+analyze_peaks:
 	/* OK, the overhead is in the noise.  How are our results looking? */
 	peaks = get_peaks(r, &num_peaks);
 
@@ -234,7 +232,11 @@ bool results_done(struct results *r, unsigned int *runs, bool rough,
 
 	r->peaks = peaks;
 	r->num_peaks = num_peaks;
-	r->final_runs = *runs;
+	if (forced_runs)
+		/* We give raw results */
+		r->final_runs = 1;
+	else
+		r->final_runs = *runs;
 	return true;
 }
 
