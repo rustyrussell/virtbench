@@ -7,19 +7,20 @@ well a virtualization solution will perform in a real world situation.
 
 
 Requirements:
-	/dev/net/tun: try "modprobe tun"
-	The networks 192.168.19.0 and 192.168.12.0 free to be used.
-	A kernel with CONFIG_BLK_DEV_INITRD=y
+	Free networks 192.168.19.0 (and 192.168.12.0 for lguest).
+	A guest/domU kernel with CONFIG_BLK_DEV_INITRD=y
 
 Quickstart:
-	# Build the code and root filesystems (will use sudo)
+	# Build the code
 	make
 	# Set the guest kernel location and maybe more
 	vi ./SETTINGS
 	# Run the benchmark (local mode)
-	sudo ./virtbench local
+	./virtbench local
 	# Run the benchmark (kvm mode)
 	sudo ./virtbench kvm
+	# Run the benchmark (Xen mode)
+	sudo ./virtbench xen
 	# Run the benchmark (lguest mode)
 	sudo ./virtbench lguest
 
