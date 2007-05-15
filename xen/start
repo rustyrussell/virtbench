@@ -3,4 +3,5 @@
 . ./SETTINGS
 
 /etc/init.d/xend restart
+ip addr del 192.168.19.254/24 brd 192.168.19.255 dev eth0 2>/dev/null || true
 ip addr add 192.168.19.254/24 brd 192.168.19.255 dev eth0

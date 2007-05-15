@@ -2,8 +2,9 @@ import string
 
 name        = '@NAME@'
 kernel      = '@KERNEL@'
-root        = '/dev/xvda1 rw'
-extra       = "init=/virtclient eth0 %s" % string.replace('@IP@', '.', '/')
+root        = '/dev/ram0 rw'
+extra       = "rdinit=/virtclient @VIRTBENCH_ID@ @SERVERIP@ @SERVERPORT@ /dev/xvda1 202 1 eth0 %s" % string.replace('@IP@', '.', '/')
+ramdisk     = '@INITRD@'
 memory      = 128
 vcpus       = 1
 disk        = [ 'file:@BLOCK@,xvda1,w' ]

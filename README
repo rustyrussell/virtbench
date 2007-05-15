@@ -35,7 +35,7 @@ create a new directory to add new ones (see below):
 	- local (simply run each client as a normal process)
 	- lguest
 	- kvm
-	- qemu
+	- xen
 
 Since most hypervisors require root privileges, virtbench is usually
 run as root (not required for "local" mode).

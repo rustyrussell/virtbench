@@ -1,35 +1,40 @@
 #!/bin/bash
 
-. /SETTINGS
+. ./SETTINGS
 
 VIRTBENCH_ID=$1
-IP=$2
-BLOCK=$ROOT_FILE-$1
+SERVERIP=`echo $2 | tr . /`
+SERVERPORT=$3
+# Xen needs absolute paths, and separate scratchfiles
+BLOCK=`pwd`/scratchfile-$VIRTBENCH_ID
+INITRD=`pwd`/initrd.gz
+IP=192.168.19.$(($VIRTBENCH_ID+1))
+
+if [ ! -f $BLOCK ] || [ scratchfile -nt $BLOCK ]; then
+    cp scratchfile $BLOCK
+fi
 
 # Ouput ID for the server
 NAME="virtbench_${VIRTBENCH_ID}"
 echo ${NAME}
 
+# If they specified a bzImage, change it to vmlinux here.
+KERNEL=`echo "$KERNEL" | sed 's,arch/[^/]*/boot/bzImage,vmlinux,'`
+
 /bin/sed -e "s,@IP@,$IP,g"                     \
          -e "s,@NAME@,$NAME,g"                 \
          -e "s,@BLOCK@,$BLOCK,g"               \
          -e "s,@KERNEL@,$KERNEL,g"             \
+         -e "s,@INITRD@,$INITRD,g"             \
+         -e "s,@SERVERIP@,$SERVERIP,g"             \
+         -e "s,@SERVERPORT@,$SERVERPORT,g"             \
          -e "s,@VIRTBENCH_ID@,$VIRTBENCH_ID,g" \
          < xen/virtbench-xen.cfg.in > /tmp/virtbench-xen_${VIRTBENCH_ID}.cfg
 
-# Make the root FS if is doesn't exist
-[ ! -e $BLOCK ] && cp $ROOT_FILE $BLOCK
-
-# Copy virtbech-client into initrd or root fs
-mount -o,loop,rw $BLOCK /mnt
-cp virtclient /mnt
-rm -f /mnt/tmp/*
-umount /mnt
-e2fsck -y $BLOCK >/dev/null 2>&1
-
-# Redirect everything so this doesn't hold socket open
+# Redirect everything so this doesn't hold socket open, but in return we get
+# no console output.
 xm create -c /tmp/virtbench-xen_${VIRTBENCH_ID}.cfg \
-             >> $LOGFILES-$1 2>&1 < /dev/null &
+             > $LOGFILES-$1 2>&1 < /dev/null &
 
 # Once the script completes the virtual machine must be "pingable" without
 # further prodding by virtbench

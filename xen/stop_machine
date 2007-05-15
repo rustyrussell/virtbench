@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. /SETTINGS
+. ./SETTINGS
 
 xm destroy $( xm domid $1 )
 exit 0
