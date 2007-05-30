@@ -28,6 +28,7 @@ struct results *new_results(void);
 void add_result(struct results *, u64 res);
 bool results_done(struct results *, unsigned int *runs, bool rough,
 		  unsigned int forced_runs);
+bool results_range_done(struct results *, bool rough);
 /* Answers are attached to the "struct results", so needn't be freed */
 char *results_to_csv(struct results *);
 char *results_to_dist_summary(struct results *);
@@ -45,6 +46,8 @@ struct results *do_pair_bench_onestop(struct benchmark *bench, bool rough,
 				      unsigned int forced_runs);
 struct results *do_receive_bench(struct benchmark *bench, bool rough,
 				 unsigned int forced_runs);
+struct results *do_clock_accuracy_bench(struct benchmark *bench, bool rough,
+					unsigned int forced_runs);
 
 #define NET_BANDWIDTH_SIZE 4 MB
 #define NET_WARMUP_BYTES (128 * 1024)

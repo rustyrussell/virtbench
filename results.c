@@ -240,6 +240,19 @@ analyze_peaks:
 	return true;
 }
 
+bool results_range_done(struct results *r, bool rough)
+{
+	/* We expect a fairly flat distribution. */
+	if (r->num_results < MINIMUM_RUNS * (rough ? 1 : 5))
+		return false;
+
+	/* We give raw results */
+	r->overhead = 0;
+	r->peaks = get_peaks(r, &r->num_peaks);;
+	r->final_runs = 1;
+	return true;
+}
+
 char *results_to_dist_summary(struct results *r)
 {
 	char *str = talloc_strdup(r, "");

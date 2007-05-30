@@ -112,6 +112,12 @@ static int set_fds(fd_set *fds, const int clients[], unsigned num)
 	return max_fd;
 }
 
+static u64 timeval_to_ns(const struct timeval *time)
+{
+	return time->tv_sec * (u64)1000000000
+		+ time->tv_usec * (u64)1000;
+}
+
 static u64 end_test(const struct timeval *start,
 		    const int clients[], unsigned num)
 {
@@ -133,10 +139,8 @@ static u64 end_test(const struct timeval *start,
 				num_done++;
 				if (num_done == num) {
 					gettimeofday(&end, NULL);
-					return (end.tv_sec - start->tv_sec)
-						* (u64)1000000000 
-						+ (end.tv_usec-start->tv_usec)
-						* (u64)1000;
+					return timeval_to_ns(&end)
+						- timeval_to_ns(start);
 				}
 				FD_CLR(sockets[clients[i]], &orig_rfds);
 			}
@@ -467,6 +471,45 @@ struct results *do_receive_bench(struct benchmark *bench, bool rough,
 		dump_profile();
 	return r;
 }
+
+struct results *do_clock_accuracy_bench(struct benchmark *bench, bool rough,
+					unsigned int forced_runs)
+{
+	struct results *r = new_results();
+	int client[1] = { random() % NUM_MACHINES };
+
+	do {
+		struct timeval st, t;
+		u64 localdiff, expected, actual;
+
+		setup_bench(client[0], bench->name, "", 0, 1);
+		send_start_to_client(client[0]);
+
+		start_timer(&st);
+		if (write(sockets[client[0]], &st, sizeof(st)) != sizeof(st))
+			err(1, "Writing timestamp to client");
+		if (read(sockets[client[0]], &t, sizeof(t)) != sizeof(t))
+			err(1, "Reading timestamp from client");
+		localdiff = end_test(&st, client, 1);
+
+		/* Assume the client should have given us a time of
+		 * start + 1/2 localdiff. */
+		expected = timeval_to_ns(&st) + localdiff / 2;
+		actual = timeval_to_ns(&t);
+
+		if (actual > expected)
+			add_result(r, actual - expected);
+		else
+			add_result(r, expected - actual);
+		if (progress) {
+			printf(".");
+			fflush(stdout);
+		}
+	} while (!results_range_done(r, rough));
+	if (profile)
+		dump_profile();
+	return r;
+}	
 
 static bool benchmark_listed(const char *bench, char *argv[])
 {

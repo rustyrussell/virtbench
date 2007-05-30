@@ -228,3 +228,10 @@ struct results *do_receive_bench(struct benchmark *bench, bool rough,
 	assert(0);
 	return NULL;
 }
+
+struct results *do_clock_accuracy_bench(struct benchmark *bench, bool rough,
+					unsigned int forced_runs)
+{
+	assert(0);
+	return NULL;
+}
