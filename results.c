@@ -198,17 +198,17 @@ bool results_done(struct results *r, unsigned int *runs, bool rough,
 	}
 
 	/* We're aiming for at least 100x overhead (but no longer than
-	 * 1 second per run). */
+	 * 100 ms per run). */
 	avg = average(r->num_results, r->results);
 
-	if (avg < r->overhead * 100 && avg < 1000000000) {
+	if (avg < r->overhead * 100 && avg < 100000000) {
 		u64 per_run = (avg - r->overhead) / *runs;
 
 		/* Jump to approx how many runs we'd need... */
 		do {
 			*runs *= 2;
 		} while (*runs * per_run < 100 * r->overhead
-			 && *runs * per_run < 1000000000);
+			 && *runs * per_run < 100000000);
 	reset_results:
 		r->num_results = 0;
 		r->results = NULL;
