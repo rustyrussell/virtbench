@@ -9,7 +9,7 @@ export IPADDR
 # Redirect everything so this doesn't hold pipe open.
 $QEMU -m 512								\
 	-net nic -net tap,ifname=tap$1,script=kvm/ifup			\
-	-nographic -hda rootfs/virtbench-root-$1			\
+	-nographic -hda scratchfile					\
 	-kernel $KERNEL							\
 	-initrd initrd.gz						\
 	-append "console=ttyS0 rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/hda 3 0 eth0 192/168/19/$(($1+1))" \
