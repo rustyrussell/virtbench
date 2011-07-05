@@ -3,23 +3,21 @@
 . ./SETTINGS
 
 # Redirect everything so this doesn't hold socket open.
-$LGUEST 512m $KERNEL						\
+$LGUEST 512 $KERNEL						\
 	--block=scratchfile					\
 	--tunnet=192.168.12.$(($1+1))				\
-	--sharenet=$SHARENET_FILE				\
 	--initrd=initrd.gz					\
 	debug							\
-	rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/lgba	\
-		254 0 eth0 192/168/19/$(($1+1)) eth1			\
+	rdinit=/virtclient $1 `echo $2 | tr . /` $3 /dev/vda	\
+		254 0 eth0 192/168/19/$(($1+1))			\
 	> $LOGFILES-$1 2>&1 < /dev/null &
 jobs -p %1
 
 for i in `seq 5`; do
-    if route add -host 192.168.19.$(($1+1)) dev tap$1 2>> $LOGFILES-$1; then
+    if /sbin/route add -host 192.168.19.$(($1+1)) dev tap$1 2>/dev/null; then
+	echo 1 > /proc/sys/net/ipv4/conf/tap$1/proxy_arp 
 	exit 0
     fi
-    echo route add failed >> $LOGFILES-$1
     sleep 1
 done
 exit 1
-

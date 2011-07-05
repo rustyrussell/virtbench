@@ -7,7 +7,7 @@ well a virtualization solution will perform in a real world situation.
 
 
 Requirements:
-	Free networks 192.168.19.0 (and 192.168.12.0 for lguest).
+	Free network 192.168.19.0
 	A guest/domU kernel with CONFIG_BLK_DEV_INITRD=y
 
 Quickstart:

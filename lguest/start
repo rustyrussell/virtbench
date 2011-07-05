@@ -3,6 +3,8 @@
 . ./SETTINGS
 
 rm -f $LOGFILES*
-rm -f $SHARENET_FILE
 
-[ -f /proc/lguest ] || modprobe lg
+[ -d /sys/module/lg ] || modprobe lg
+
+# We need to enable packet forwarding for inter-guest tests
+echo 1 > /proc/sys/net/ipv4/ip_forward
