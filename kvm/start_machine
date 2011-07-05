@@ -7,8 +7,8 @@ IPADDR=192.168.12.$(($1+1))
 export IPADDR
 
 # Redirect everything so this doesn't hold pipe open.
-$QEMU -m 512								\
-	-net nic -net tap,ifname=tap$1,script=kvm/ifup			\
+$KVM -m 512								\
+	-net nic,model=virtio -net tap,ifname=tap$1,script=kvm/ifup	\
 	-nographic -hda scratchfile					\
 	-kernel $KERNEL							\
 	-initrd initrd.gz						\

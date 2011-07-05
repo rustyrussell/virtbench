@@ -12,13 +12,8 @@ fi
 LOGFILES=/tmp/virtbench.log
 
 # KVM settings
-if [ `uname -m` = x86_64 ]; then
-	QEMU=qemu-system-x86_64
-else
-	QEMU=qemu
-fi
+KVM=kvm
 
 # Lguest settings
-SHARENET_FILE=/tmp/virtbench-lguest-net
 LGUEST=/lib/modules/`uname -r`/build/Documentation/lguest/lguest
 
